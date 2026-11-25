@@ -103,6 +103,15 @@ export function useGithubAuth(): UseGithubAuthResult {
 
     try {
       const resp = await fetch('/api/auth/github/url');
+      const contentType = resp.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        setConnecting(false);
+        setError(
+          'GitHub sign-in requires the live app server and is unavailable on static GitHub Pages.'
+        );
+        return;
+      }
+
       const data = (await resp.json()) as {
         url?: string;
         configured?: boolean;
