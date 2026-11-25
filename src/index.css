@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: #1697a6;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+}
+
+.font-display {
+  font-family: 'Fredoka', 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.text-stroke-dark {
+  paint-order: stroke fill;
+  -webkit-text-stroke: 4px #2c1810;
+  text-shadow: 0 3px 0 #2c1810;
+}
+
+.text-stroke-sm {
+  paint-order: stroke fill;
+  -webkit-text-stroke: 2.5px #2c1810;
+  text-shadow: 0 2px 0 #2c1810;
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 3.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-slow {
+    animation: none;
+  }
+}
