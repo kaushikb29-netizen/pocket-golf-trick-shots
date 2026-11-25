@@ -1,3 +1,5 @@
+import { golfAudio } from '../game/audio';
+import { getWorldForLevelId } from '../game/progression';
 import { LevelDefinition } from '../game/types';
 
 interface GameHudProps {
@@ -23,13 +25,23 @@ export function GameHud({
   onToggleMute,
   onPause,
 }: GameHudProps) {
+  const world = getWorldForLevelId(level.id);
+  const worldLabelColor =
+    level.theme === 'frost'
+      ? 'text-[#0369A1]'
+      : level.theme === 'neon'
+      ? 'text-[#7E22CE]'
+      : level.theme === 'beach'
+      ? 'text-[#0E7490]'
+      : 'text-[#247A3C]';
+
   return (
-    <div className="fixed inset-0 z-10 pointer-events-none flex flex-col justify-between p-2.5 sm:p-4">
+    <div className="fixed inset-0 z-10 pointer-events-none flex flex-col justify-between p-2 sm:p-4">
       {/* Top Perimeter Clusters: Wooden Arcade Plaques */}
       <div className="flex items-start justify-between gap-1.5 sm:gap-4 w-full">
         {/* Top-Left: Hole Info Plaque */}
         <div
-          className="pointer-events-auto flex items-center gap-2 sm:gap-3 bg-[#FFF6DF] border-[3px] border-[#522810] rounded-xl sm:rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2 shadow-[0_4px_0_#522810] shrink-0"
+          className="pointer-events-auto flex items-center gap-2 sm:gap-3 bg-[#FFF6DF] border-[3px] border-[#522810] rounded-xl sm:rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2 shadow-[0_4px_0_#522810] min-w-0 max-w-[54vw] sm:max-w-none"
           aria-label={`Hole ${levelNumber} of ${totalLevels}, ${level.name}, Par ${level.par}`}
         >
           {/* Code-authored flag SVG icon */}
@@ -37,15 +49,23 @@ export function GameHud({
             <line x1="6" y1="21" x2="6" y2="4" stroke="#522810" strokeWidth="2.6" strokeLinecap="round" />
             <path
               d="M7 4.5 L20 9 L7 13.5 Z"
-              fill="#FF4D4F"
+              fill={level.theme === 'neon' ? '#F43F8E' : '#FF4D4F'}
               stroke="#522810"
               strokeWidth="2"
               strokeLinejoin="round"
             />
-            <ellipse cx="6" cy="21" rx="4" ry="1.8" fill="#2FA752" stroke="#522810" strokeWidth="1.5" />
+            <ellipse
+              cx="6"
+              cy="21"
+              rx="4"
+              ry="1.8"
+              fill={level.theme === 'frost' ? '#38BDF8' : '#2FA752'}
+              stroke="#522810"
+              strokeWidth="1.5"
+            />
           </svg>
-          <div className="leading-tight">
-            <div className="flex items-baseline gap-2">
+          <div className="leading-tight min-w-0">
+            <div className="flex items-baseline gap-1.5 sm:gap-2">
               <span className="font-display text-sm sm:text-lg font-bold text-[#3B1D0E] whitespace-nowrap">
                 Hole {levelNumber}/{totalLevels}
               </span>
@@ -53,19 +73,19 @@ export function GameHud({
                 · {level.name}
               </span>
             </div>
-            <div className="text-[11px] sm:text-xs font-bold text-[#247A3C] tabular-nums whitespace-nowrap">
-              Par {level.par}
+            <div className={`text-[11px] sm:text-xs font-bold tabular-nums truncate ${worldLabelColor}`}>
+              {world.name} · Par {level.par}
             </div>
           </div>
         </div>
 
-        {/* Top-Right: Strokes Readout + Utility Square Icon Buttons */}
+        {/* Top-Right: Strokes Readout + Mobile-Comfortable Square Icon Buttons */}
         <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 shrink-0">
           {/* Prominent Strokes Counter */}
           <div
             data-testid="strokes-counter"
             aria-label={`Strokes ${strokes}`}
-            className="flex items-center gap-1.5 sm:gap-2 bg-[#FFF6DF] border-[3px] border-[#522810] rounded-xl sm:rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-1.5 shadow-[0_4px_0_#522810]"
+            className="min-h-[44px] flex items-center gap-1.5 sm:gap-2 bg-[#FFF6DF] border-[3px] border-[#522810] rounded-xl sm:rounded-2xl px-2.5 sm:px-4 py-1 shadow-[0_4px_0_#522810]"
           >
             <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-[#8A4B20]">
               Strokes
@@ -83,9 +103,10 @@ export function GameHud({
             title="Restart Hole (R)"
             onClick={(e) => {
               e.currentTarget.blur();
+              golfAudio.playButtonClick();
               onRestart();
             }}
-            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-[#FDE047] hover:bg-[#FACC15] active:translate-y-0.5 border-[3px] border-[#522810] rounded-xl shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer focus-visible:outline-4 focus-visible:outline-white"
+            className="w-11 h-11 flex items-center justify-center bg-[#FDE047] hover:bg-[#FACC15] hover:-translate-y-0.5 active:translate-y-0.5 border-[3px] border-[#522810] rounded-xl shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer focus-visible:outline-4 focus-visible:outline-white"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
               <path
@@ -116,7 +137,7 @@ export function GameHud({
               e.currentTarget.blur();
               onToggleMute();
             }}
-            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-[#FFF6DF] hover:bg-[#FDECC8] active:translate-y-0.5 border-[3px] border-[#522810] rounded-xl shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer focus-visible:outline-4 focus-visible:outline-white"
+            className="w-11 h-11 flex items-center justify-center bg-[#FFF6DF] hover:bg-[#FDECC8] hover:-translate-y-0.5 active:translate-y-0.5 border-[3px] border-[#522810] rounded-xl shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer focus-visible:outline-4 focus-visible:outline-white"
           >
             {muted ? (
               <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
@@ -162,9 +183,10 @@ export function GameHud({
             title="Pause (P)"
             onClick={(e) => {
               e.currentTarget.blur();
+              golfAudio.playButtonClick();
               onPause();
             }}
-            className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center bg-[#FFF6DF] hover:bg-[#FDECC8] active:translate-y-0.5 border-[3px] border-[#522810] rounded-xl shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer focus-visible:outline-4 focus-visible:outline-white"
+            className="w-11 h-11 flex items-center justify-center bg-[#FFF6DF] hover:bg-[#FDECC8] hover:-translate-y-0.5 active:translate-y-0.5 border-[3px] border-[#522810] rounded-xl shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer focus-visible:outline-4 focus-visible:outline-white"
           >
             <svg viewBox="0 0 24 24" className="w-5 h-5" aria-hidden="true">
               <rect x="6" y="5" width="4.5" height="14" rx="1.5" fill="#3B1D0E" />
@@ -177,7 +199,7 @@ export function GameHud({
       {/* Bottom Safe-Margin Contextual Tip (only before first shot on Hole 1) */}
       <div className="flex justify-center pb-1">
         {showFirstShotHint && (
-          <p className="text-xs sm:text-sm font-bold text-[#FFFDF5] drop-shadow-[0_2px_3px_rgba(12,48,58,0.85)] text-center">
+          <p className="text-xs sm:text-sm font-bold text-[#FFFDF5] drop-shadow-[0_2px_3px_rgba(12,48,58,0.85)] text-center px-3">
             Drag back from the ball to aim · Release to shoot
           </p>
         )}

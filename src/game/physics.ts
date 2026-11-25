@@ -49,8 +49,16 @@ export function createInitialSimState(level: LevelDefinition): SimState {
 }
 
 export function pointInSurfaceZone(x: number, y: number, zone: SurfaceZone): boolean {
-  const dx = x - zone.x;
-  const dy = y - zone.y;
+  let dx = x - zone.x;
+  let dy = y - zone.y;
+  if (zone.angle) {
+    const cos = Math.cos(-zone.angle);
+    const sin = Math.sin(-zone.angle);
+    const rxRot = dx * cos - dy * sin;
+    const ryRot = dx * sin + dy * cos;
+    dx = rxRot;
+    dy = ryRot;
+  }
   const rx = zone.w / 2;
   const ry = zone.h / 2;
   if (zone.shape === 'ellipse') {
@@ -73,12 +81,16 @@ export function getActiveHazard(
 ): SurfaceZone | null {
   const hazards = level.hazards;
   if (!hazards || hazards.length === 0) return null;
+  let matched: SurfaceZone | null = null;
   for (const h of hazards) {
     if (pointInSurfaceZone(x, y, h)) {
-      return h;
+      if (h.kind === 'water') return h;
+      if (!matched || h.kind === 'sand') {
+        matched = h;
+      }
     }
   }
-  return null;
+  return matched;
 }
 
 /**
@@ -581,10 +593,11 @@ export function stepSimulation(
         break;
       }
 
-      // Natural rolling friction (sand patches apply stronger resistance)
+      // Natural rolling friction (sand slows strongly, ice reduces friction smoothly, normal turf restores standard grip)
       const inSand = hazard?.kind === 'sand';
-      const expRate = inSand ? 3.5 : 0.92;
-      const linearRate = inSand ? 145 : 32;
+      const inIce = hazard?.kind === 'ice';
+      const expRate = inSand ? 3.5 : inIce ? 0.24 : 0.92;
+      const linearRate = inSand ? 145 : inIce ? 8 : 32;
 
       const expDrag = Math.exp(-expRate * subDt);
       ball.vx *= expDrag;
@@ -804,7 +817,8 @@ export function predictAimPath(
       points.push({ x: ghost.x, y: ghost.y });
       break;
     }
-    const dragRate = hazard?.kind === 'sand' ? 3.5 : 0.92;
+    const dragRate =
+      hazard?.kind === 'sand' ? 3.5 : hazard?.kind === 'ice' ? 0.24 : 0.92;
     ghost.vx *= Math.exp(-dragRate * stepDt);
     ghost.vy *= Math.exp(-dragRate * stepDt);
 

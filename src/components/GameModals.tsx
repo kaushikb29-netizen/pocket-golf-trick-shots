@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { GithubUser } from '../hooks/useGithubAuth';
+import { golfAudio } from '../game/audio';
 import { LEVELS } from '../game/levels';
 import { formatParDelta, getScoreLabel } from '../game/physics';
 import type { ScorecardEntry } from '../server/githubHelpers';
@@ -9,6 +10,7 @@ interface PauseModalProps {
   levelName: string;
   onResume: () => void;
   onRestart: () => void;
+  onSelectCourse: () => void;
   onTitle: () => void;
 }
 
@@ -17,6 +19,7 @@ export function PauseModal({
   levelName,
   onResume,
   onRestart,
+  onSelectCourse,
   onTitle,
 }: PauseModalProps) {
   return (
@@ -25,9 +28,9 @@ export function PauseModal({
       aria-modal="true"
       aria-labelledby="pause-title"
       className="fixed inset-0 z-30 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(11, 52, 64, 0.62)' }}
+      style={{ backgroundColor: 'rgba(11, 52, 64, 0.64)' }}
     >
-      <div className="w-full max-w-sm bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-6 shadow-[0_10px_0_#522810] text-center">
+      <div className="animate-modal-pop w-full max-w-sm bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-6 shadow-[0_10px_0_#522810] text-center">
         <p className="text-xs font-extrabold uppercase tracking-wider text-[#8A4B20]">
           Hole {levelNumber} · {levelName}
         </p>
@@ -35,27 +38,46 @@ export function PauseModal({
           Paused
         </h2>
 
-        <div className="mt-6 flex flex-col gap-3">
+        <div className="mt-6 flex flex-col gap-2.5">
           <button
             type="button"
-            onClick={onResume}
-            className="w-full font-display text-xl font-bold text-[#FFFDF5] bg-[#2FA752] hover:bg-[#269145] active:translate-y-0.5 py-3 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] cursor-pointer whitespace-nowrap"
+            onClick={() => {
+              golfAudio.playButtonClick();
+              onResume();
+            }}
+            className="min-h-[48px] w-full font-display text-xl font-bold text-[#FFFDF5] bg-[#2FA752] hover:bg-[#269145] hover:-translate-y-0.5 active:translate-y-0.5 py-3 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
             Resume
           </button>
           <button
             type="button"
-            onClick={onRestart}
-            className="w-full font-display text-lg font-bold text-[#3B1D0E] bg-[#FDE047] hover:bg-[#FACC15] active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] cursor-pointer whitespace-nowrap"
+            onClick={() => {
+              golfAudio.playButtonClick();
+              onRestart();
+            }}
+            className="min-h-[46px] w-full font-display text-lg font-bold text-[#3B1D0E] bg-[#FDE047] hover:bg-[#FACC15] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
             Restart Hole
           </button>
           <button
             type="button"
-            onClick={onTitle}
-            className="w-full font-display text-lg font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] cursor-pointer whitespace-nowrap"
+            onClick={() => {
+              golfAudio.playButtonClick();
+              onSelectCourse();
+            }}
+            className="min-h-[46px] w-full font-display text-lg font-bold text-[#3B1D0E] bg-[#FFF2CC] hover:bg-[#FCE6A6] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
-            Title Screen
+            Select Course
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              golfAudio.playButtonClick();
+              onTitle();
+            }}
+            className="min-h-[46px] w-full font-display text-lg font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+          >
+            Main Menu
           </button>
         </div>
       </div>
@@ -68,18 +90,48 @@ interface LevelClearModalProps {
   levelName: string;
   strokes: number;
   par: number;
+  bestStrokes: number | null;
+  isNewBest: boolean;
   onNextHole: () => void;
   onReplayHole: () => void;
 }
 
-function StarSvg({ filled }: { filled: boolean }) {
+function StarSvg({ filled, animClass }: { filled: boolean; animClass?: string }) {
   return (
-    <svg viewBox="0 0 32 32" className="w-9 h-9" aria-hidden="true">
+    <svg
+      viewBox="0 0 32 32"
+      className={`w-9 h-9 sm:w-10 sm:h-10 ${filled && animClass ? animClass : ''}`}
+      aria-hidden="true"
+    >
       <path
         d="M16 3 L19.9 11.1 L28.8 12.2 L22.2 18.4 L23.9 27.2 L16 22.9 L8.1 27.2 L9.8 18.4 L3.2 12.2 L12.1 11.1 Z"
         fill={filled ? '#FACC15' : '#E2D4B7'}
         stroke="#522810"
         strokeWidth="2.4"
+        strokeLinejoin="round"
+      />
+      {filled && (
+        <path
+          d="M16 6.8 L17.9 11.1 L22.4 11.7"
+          fill="none"
+          stroke="#FFFDF5"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          opacity="0.7"
+        />
+      )}
+    </svg>
+  );
+}
+
+function SparkleAccent({ className, color = '#FACC15' }: { className?: string; color?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`w-5 h-5 ${className ?? ''}`} aria-hidden="true">
+      <path
+        d="M12 2 Q12 12 22 12 Q12 12 12 22 Q12 12 2 12 Q12 12 12 2 Z"
+        fill={color}
+        stroke="#522810"
+        strokeWidth="1.2"
         strokeLinejoin="round"
       />
     </svg>
@@ -91,10 +143,13 @@ export function LevelClearModal({
   levelName,
   strokes,
   par,
+  bestStrokes,
+  isNewBest,
   onNextHole,
   onReplayHole,
 }: LevelClearModalProps) {
   const info = getScoreLabel(strokes, par);
+  const isSpecialScore = strokes === 1 || strokes <= par - 1;
   const bannerColor =
     info.tone === 'gold'
       ? '#F59E0B'
@@ -110,35 +165,60 @@ export function LevelClearModal({
       aria-modal="true"
       aria-labelledby="level-clear-title"
       className="fixed inset-0 z-30 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(11, 52, 64, 0.58)' }}
+      style={{ backgroundColor: 'rgba(11, 52, 64, 0.62)' }}
     >
-      <div className="w-full max-w-sm bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-6 shadow-[0_10px_0_#522810] text-center">
+      <div className="animate-modal-pop w-full max-w-sm bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-6 shadow-[0_10px_0_#522810] text-center">
         <p className="text-xs font-extrabold uppercase tracking-wider text-[#8A4B20]">
           Hole {levelNumber} Cleared · {levelName}
         </p>
 
-        <div
-          className="mt-3 inline-block px-5 py-1.5 rounded-2xl border-[3px] border-[#522810]"
-          style={{ backgroundColor: bannerColor }}
-        >
-          <h2
-            id="level-clear-title"
-            className="font-display text-2xl sm:text-3xl font-bold text-[#FFFDF5] tracking-wide"
+        {/* Celebratory Score Banner with tasteful sparkles for Birdie / Eagle / Hole in One */}
+        <div className="mt-3 flex items-center justify-center gap-2">
+          {isSpecialScore && (
+            <SparkleAccent
+              className="animate-sparkle shrink-0"
+              color={info.tone === 'gold' ? '#FACC15' : '#34D399'}
+            />
+          )}
+          <div
+            className={`inline-block px-5 py-1.5 rounded-2xl border-[3px] border-[#522810] shadow-[0_3px_0_#522810] ${
+              isSpecialScore ? 'animate-banner-pulse' : ''
+            }`}
+            style={{ backgroundColor: bannerColor }}
           >
-            {info.title}
-          </h2>
+            <h2
+              id="level-clear-title"
+              className="font-display text-2xl sm:text-3xl font-bold text-[#FFFDF5] tracking-wide"
+            >
+              {info.title}
+            </h2>
+          </div>
+          {isSpecialScore && (
+            <SparkleAccent
+              className="animate-sparkle shrink-0"
+              color={info.tone === 'gold' ? '#FF595E' : '#FACC15'}
+            />
+          )}
         </div>
 
-        <p className="mt-2 text-sm font-bold text-[#6E3D1B]">{info.detail}</p>
+        <p className="mt-2 text-sm font-bold text-[#6E3D1B]">
+          {info.detail}
+          {isNewBest && (
+            <span className="text-[#15803D]"> · New Personal Best!</span>
+          )}
+          {!isNewBest && bestStrokes !== null && (
+            <span className="text-[#8A4B20] tabular-nums"> · Best {bestStrokes}</span>
+          )}
+        </p>
 
-        {/* Stars */}
+        {/* Staggered Animated Stars */}
         <div
           className="mt-3 flex items-center justify-center gap-2"
           aria-label={`${info.stars} out of 3 stars`}
         >
-          <StarSvg filled={info.stars >= 1} />
-          <StarSvg filled={info.stars >= 2} />
-          <StarSvg filled={info.stars >= 3} />
+          <StarSvg filled={info.stars >= 1} animClass="animate-star-pop-1" />
+          <StarSvg filled={info.stars >= 2} animClass="animate-star-pop-2" />
+          <StarSvg filled={info.stars >= 3} animClass="animate-star-pop-3" />
         </div>
 
         {/* Stat Row */}
@@ -165,15 +245,21 @@ export function LevelClearModal({
           <button
             type="button"
             data-start="true"
-            onClick={onNextHole}
-            className="w-full font-display text-xl font-bold text-[#FFFDF5] bg-[#2FA752] hover:bg-[#269145] active:translate-y-0.5 py-3 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] cursor-pointer whitespace-nowrap"
+            onClick={() => {
+              golfAudio.playCardSelect();
+              onNextHole();
+            }}
+            className="min-h-[50px] w-full font-display text-xl font-bold text-[#FFFDF5] bg-[#2FA752] hover:bg-[#269145] hover:-translate-y-0.5 active:translate-y-0.5 py-3 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
             Next Hole
           </button>
           <button
             type="button"
-            onClick={onReplayHole}
-            className="w-full font-display text-base font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] cursor-pointer whitespace-nowrap"
+            onClick={() => {
+              golfAudio.playButtonClick();
+              onReplayHole();
+            }}
+            className="min-h-[46px] w-full font-display text-base font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
             Replay Hole
           </button>
@@ -193,6 +279,7 @@ interface VictoryModalProps {
   onConnectGithub: () => void;
   onShareScorecard: (holes: ScorecardEntry[]) => Promise<string>;
   onPlayAgain: () => void;
+  onSelectCourse: () => void;
   onTitle: () => void;
 }
 
@@ -206,6 +293,7 @@ export function VictoryModal({
   onConnectGithub,
   onShareScorecard,
   onPlayAgain,
+  onSelectCourse,
   onTitle,
 }: VictoryModalProps) {
   const [savingGist, setSavingGist] = useState(false);
@@ -213,9 +301,16 @@ export function VictoryModal({
   const [gistError, setGistError] = useState<string | null>(null);
 
   const totalPar = LEVELS.reduce((acc, lvl) => acc + lvl.par, 0);
+  const playedCount = holeStrokes.filter((s) => s > 0).length;
   const totalStrokes = holeStrokes.reduce((acc, s) => acc + s, 0);
-  const deltaText = formatParDelta(totalStrokes, totalPar);
-  const diff = totalStrokes - totalPar;
+  const playedPar = LEVELS.reduce(
+    (acc, lvl, idx) => acc + ((holeStrokes[idx] ?? 0) > 0 ? lvl.par : 0),
+    0
+  );
+  const isFullRun = playedCount === LEVELS.length;
+  const effectivePar = isFullRun ? totalPar : Math.max(1, playedPar);
+  const deltaText = formatParDelta(totalStrokes, effectivePar);
+  const diff = totalStrokes - effectivePar;
   const performanceLabel =
     diff <= -4
       ? 'Legendary Trick-Shot Master'
@@ -223,13 +318,14 @@ export function VictoryModal({
       ? 'Tour Champion'
       : diff <= 5
       ? 'Pro Club Finisher'
-      : '12-Hole Challenger';
+      : '16-Hole Challenger';
   const overallStars: 1 | 2 | 3 = diff <= 0 ? 3 : diff <= 6 ? 2 : 1;
 
   const firstHalf = LEVELS.slice(0, Math.ceil(LEVELS.length / 2));
   const secondHalf = LEVELS.slice(Math.ceil(LEVELS.length / 2));
 
   const handleSaveToGithub = async () => {
+    golfAudio.playButtonClick();
     setSavingGist(true);
     setGistError(null);
     try {
@@ -253,45 +349,55 @@ export function VictoryModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="victory-title"
-      className="fixed inset-0 z-30 flex items-center justify-center p-3 sm:p-4"
+      className="fixed inset-0 z-30 flex items-center justify-center p-2.5 sm:p-4"
       style={{ backgroundColor: 'rgba(11, 52, 64, 0.72)' }}
     >
-      <div className="w-full max-w-2xl max-h-[94vh] overflow-y-auto bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-4 sm:p-6 shadow-[0_10px_0_#522810] text-center">
-        {/* Champion Trophy + Stars Header */}
+      <div className="animate-modal-pop w-full max-w-2xl max-h-[93dvh] overflow-y-auto touch-pan-y overscroll-contain bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-4 sm:p-5 shadow-[0_10px_0_#522810] text-center">
+        {/* Frost Falls Champion Trophy Header */}
         <div className="flex items-center justify-center gap-3">
-          <svg viewBox="0 0 48 48" className="w-11 h-11 sm:w-12 sm:h-12 shrink-0" aria-hidden="true">
-            <path
-              d="M12 10 H36 V20 C36 27 30.5 32 24 32 C17.5 32 12 27 12 20 Z"
-              fill="#FACC15"
-              stroke="#522810"
-              strokeWidth="3"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M12 13 H6 C6 20 9 23 13 23 M36 13 H42 C42 20 39 23 35 23"
-              fill="none"
-              stroke="#522810"
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-            <rect x="20.5" y="32" width="7" height="7" fill="#F59E0B" stroke="#522810" strokeWidth="2.5" />
-            <rect x="14" y="38" width="20" height="5" rx="2" fill="#BA6B32" stroke="#522810" strokeWidth="2.5" />
-          </svg>
+          <div className="relative shrink-0">
+            <svg viewBox="0 0 48 48" className="w-11 h-11 sm:w-12 sm:h-12" aria-hidden="true">
+              <path
+                d="M12 10 H36 V20 C36 27 30.5 32 24 32 C17.5 32 12 27 12 20 Z"
+                fill="#38BDF8"
+                stroke="#0C4A6E"
+                strokeWidth="3"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M12 13 H6 C6 20 9 23 13 23 M36 13 H42 C42 20 39 23 35 23"
+                fill="none"
+                stroke="#0C4A6E"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+              {/* Snowflake star emblem on cup */}
+              <path
+                d="M24 14 V26 M18 20 H30 M19.8 15.8 L28.2 24.2 M28.2 15.8 L19.8 24.2"
+                stroke="#FFFFFF"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              />
+              <rect x="20.5" y="32" width="7" height="7" fill="#FACC15" stroke="#522810" strokeWidth="2.5" />
+              <rect x="14" y="38" width="20" height="5" rx="2" fill="#BA6B32" stroke="#522810" strokeWidth="2.5" />
+            </svg>
+            <SparkleAccent className="animate-sparkle w-4 h-4 absolute -top-1.5 -right-1.5" color="#FACC15" />
+          </div>
           <div className="text-left">
-            <div className="inline-block px-2.5 py-0.5 rounded-full bg-[#FACC15] border-2 border-[#522810] text-[11px] font-extrabold uppercase tracking-wider text-[#3B1D0E]">
-              {performanceLabel}
+            <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#0369A1]">
+              Frost Falls Cleared · {performanceLabel}
             </div>
             <h2
               id="victory-title"
-              className="mt-1 font-display text-xl sm:text-2xl font-bold text-[#3B1D0E] leading-tight"
+              className="mt-0.5 font-display text-lg sm:text-2xl font-bold text-[#3B1D0E] leading-tight"
             >
-              CHAMPION — ALL {LEVELS.length} HOLES CLEARED!
+              FROST FALLS CHAMPION — ALL {LEVELS.length} HOLES CLEARED!
             </h2>
           </div>
         </div>
 
-        {/* Summary Stat Strip: Total Strokes, Total Par, Performance & Stars */}
-        <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border-[3px] border-[#522810] bg-[#FFF4D6] px-3 py-2.5">
+        {/* Summary Stat Strip: Total Strokes, Total Par, Performance */}
+        <div className="mt-2.5 grid grid-cols-3 gap-2 rounded-2xl border-[3px] border-[#0C4A6E] bg-[#E8F6FF] px-3 py-2">
           <div>
             <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#8A4B20]">
               Total Strokes
@@ -300,42 +406,42 @@ export function VictoryModal({
               {totalStrokes}
             </div>
           </div>
-          <div className="border-x-2 border-[#E6D3AB]">
+          <div className="border-x-2 border-[#C7DFEE]">
             <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#8A4B20]">
-              Total Par
+              {isFullRun ? 'Total Par' : 'Run Par'}
             </div>
             <div className="font-display text-2xl font-bold text-[#247A3C] tabular-nums">
-              {totalPar}
+              {effectivePar}
             </div>
           </div>
           <div>
             <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#8A4B20]">
               Performance
             </div>
-            <div className="font-display text-lg sm:text-xl font-bold text-[#B45309] tabular-nums leading-tight mt-0.5">
+            <div className="font-display text-base sm:text-xl font-bold text-[#B45309] tabular-nums leading-tight mt-0.5">
               {deltaText}
             </div>
           </div>
         </div>
 
-        {/* Overall Star Rating */}
+        {/* Overall Staggered Star Rating */}
         <div
-          className="mt-2.5 flex items-center justify-center gap-1.5"
+          className="mt-1.5 flex items-center justify-center gap-1.5"
           aria-label={`${overallStars} out of 3 stars`}
         >
-          <StarSvg filled={overallStars >= 1} />
-          <StarSvg filled={overallStars >= 2} />
-          <StarSvg filled={overallStars >= 3} />
+          <StarSvg filled={overallStars >= 1} animClass="animate-star-pop-1" />
+          <StarSvg filled={overallStars >= 2} animClass="animate-star-pop-2" />
+          <StarSvg filled={overallStars >= 3} animClass="animate-star-pop-3" />
         </div>
 
-        {/* Compact 12-Hole Two-Column Scorecard */}
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
+        {/* Compact 16-Hole Two-Column Scorecard (Holes 1-8 & 9-16) */}
+        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
           {[firstHalf, secondHalf].map((group, groupIdx) => (
             <div
               key={groupIdx}
               className="overflow-hidden rounded-2xl border-[3px] border-[#522810] bg-[#FFFDF7]"
             >
-              <table className="w-full border-collapse text-xs sm:text-sm">
+              <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr className="bg-[#F5E6C4] border-b-2 border-[#522810] text-[#522810]">
                     <th className="py-1 px-2.5 font-extrabold">Hole</th>
@@ -349,21 +455,24 @@ export function VictoryModal({
                     const s = holeStrokes[idx] ?? 0;
                     const hDiff = s - lvl.par;
                     const toneClass =
-                      hDiff < 0
+                      s === 0
+                        ? 'text-[#94A3B8]'
+                        : hDiff < 0
                         ? 'text-[#15803D]'
                         : hDiff === 0
                         ? 'text-[#3B1D0E]'
                         : 'text-[#C2410C]';
+                    const isFrostHole = lvl.theme === 'frost';
                     return (
-                      <tr key={lvl.id}>
-                        <td className="py-1 px-2.5 font-bold text-[#3B1D0E] truncate max-w-[165px]">
+                      <tr key={lvl.id} className={isFrostHole ? 'bg-[#F0F9FF]/70' : undefined}>
+                        <td className="py-0.5 px-2.5 font-bold text-[#3B1D0E] truncate max-w-[175px]">
                           {lvl.id}. {lvl.name}
                         </td>
-                        <td className="py-1 px-1.5 text-center font-semibold text-[#7C5332] tabular-nums">
+                        <td className="py-0.5 px-1.5 text-center font-semibold text-[#7C5332] tabular-nums">
                           {lvl.par}
                         </td>
-                        <td className={`py-1 px-2.5 text-right font-extrabold tabular-nums ${toneClass}`}>
-                          {s}
+                        <td className={`py-0.5 px-2.5 text-right font-extrabold tabular-nums ${toneClass}`}>
+                          {s > 0 ? s : '—'}
                         </td>
                       </tr>
                     );
@@ -375,13 +484,13 @@ export function VictoryModal({
         </div>
 
         {bestTotal !== null && (
-          <p className="mt-2.5 text-xs font-bold text-[#8A4B20] tabular-nums">
-            Personal Best: {bestTotal} Strokes
+          <p className="mt-2 text-xs font-bold text-[#8A4B20] tabular-nums">
+            Personal Best (Full Tour): {bestTotal} Strokes
           </p>
         )}
 
-        {/* GitHub Scorecard Save / Connect Row */}
-        <div className="mt-3 flex flex-col items-center gap-1.5">
+        {/* Optional GitHub Scorecard Save / Connect Row */}
+        <div className="mt-2.5 flex flex-col items-center gap-1.5">
           {githubUser ? (
             gistUrl ? (
               <a
@@ -397,7 +506,7 @@ export function VictoryModal({
                 type="button"
                 disabled={savingGist}
                 onClick={handleSaveToGithub}
-                className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-[#FFFDF5] bg-[#24292F] hover:bg-[#32383F] disabled:opacity-70 px-4 py-2 rounded-xl border-[2.5px] border-[#522810] shadow-[0_3px_0_#522810] cursor-pointer"
+                className="min-h-[40px] inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-[#FFFDF5] bg-[#24292F] hover:bg-[#32383F] disabled:opacity-70 px-4 py-2 rounded-xl border-[2.5px] border-[#522810] shadow-[0_3px_0_#522810] cursor-pointer"
               >
                 <span>
                   {savingGist
@@ -410,8 +519,11 @@ export function VictoryModal({
             <button
               type="button"
               disabled={githubConnecting}
-              onClick={onConnectGithub}
-              className="inline-flex items-center gap-2 text-xs font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] px-3.5 py-1.5 rounded-xl border-2 border-[#522810] cursor-pointer"
+              onClick={() => {
+                golfAudio.playButtonClick();
+                onConnectGithub();
+              }}
+              className="min-h-[38px] inline-flex items-center gap-2 text-xs font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] px-3.5 py-1.5 rounded-xl border-2 border-[#522810] cursor-pointer"
             >
               <span>
                 {githubConnecting ? 'Connecting GitHub...' : 'Connect GitHub to Save Scorecard'}
@@ -430,19 +542,35 @@ export function VictoryModal({
           )}
         </div>
 
-        <div className="mt-3.5 flex flex-col sm:flex-row gap-2.5">
+        <div className="mt-3 flex flex-col sm:flex-row gap-2.5">
           <button
             type="button"
             data-start="true"
-            onClick={onPlayAgain}
-            className="flex-1 font-display text-xl font-bold text-[#FFFDF5] bg-[#FF595E] hover:bg-[#FF4248] active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] cursor-pointer whitespace-nowrap"
+            onClick={() => {
+              golfAudio.playCardSelect();
+              onPlayAgain();
+            }}
+            className="min-h-[48px] flex-1 font-display text-xl font-bold text-[#FFFDF5] bg-[#FF595E] hover:bg-[#FF4248] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-5 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
             Replay Course
           </button>
           <button
             type="button"
-            onClick={onTitle}
-            className="flex-1 sm:flex-none font-display text-lg font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] cursor-pointer whitespace-nowrap"
+            onClick={() => {
+              golfAudio.playButtonClick();
+              onSelectCourse();
+            }}
+            className="min-h-[48px] flex-1 sm:flex-none font-display text-lg font-bold text-[#3B1D0E] bg-[#FFF2CC] hover:bg-[#FCE6A6] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-5 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+          >
+            Select Course
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              golfAudio.playButtonClick();
+              onTitle();
+            }}
+            className="min-h-[48px] flex-1 sm:flex-none font-display text-lg font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-5 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
             Main Menu
           </button>

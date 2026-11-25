@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CourseSelectModal } from './components/CourseSelectModal';
 import { GolfCanvas, GolfCanvasHandle } from './components/GolfCanvas';
 import { GameHud } from './components/GameHud';
 import { LevelClearModal, PauseModal, VictoryModal } from './components/GameModals';
@@ -6,51 +7,70 @@ import { TitleScreen } from './components/TitleScreen';
 import { useGithubAuth } from './hooks/useGithubAuth';
 import { golfAudio } from './game/audio';
 import { LEVELS } from './game/levels';
+import {
+  getOverallProgressStats,
+  loadProgressFromStorage,
+  ProgressStore,
+  recordFullCourseBest,
+  recordHoleCompletion,
+  saveProgressToStorage,
+} from './game/progression';
 import { GamePhase } from './game/types';
-
-const BEST_SCORE_KEY = 'pocket-golf-trick-shots-best-12';
-
-function readStoredBest(): number | null {
-  try {
-    const raw = window.localStorage.getItem(BEST_SCORE_KEY);
-    if (!raw) return null;
-    const parsed = Number.parseInt(raw, 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeStoredBest(score: number): void {
-  try {
-    window.localStorage.setItem(BEST_SCORE_KEY, String(score));
-  } catch {
-    // Ignore storage unavailability
-  }
-}
 
 function parseInitialParams(): {
   initialPhase: GamePhase;
   startLevelIdx: number;
   previewScores: number[] | null;
+  previewStrokes: number;
 } {
   if (typeof window === 'undefined') {
-    return { initialPhase: 'title', startLevelIdx: 0, previewScores: null };
+    return { initialPhase: 'title', startLevelIdx: 0, previewScores: null, previewStrokes: 0 };
   }
   const params = new URLSearchParams(window.location.search);
-  const previewVictory = params.get('preview') === 'victory';
+  const preview = params.get('preview');
+  const view = params.get('view');
   const autostart = params.get('autostart') === '1';
-  const lvlParam = Number.parseInt(params.get('level') || (previewVictory ? String(LEVELS.length) : '1'), 10);
+  const lvlParam = Number.parseInt(
+    params.get('level') || (preview === 'victory' ? String(LEVELS.length) : '1'),
+    10
+  );
   const clampedIdx =
     Number.isFinite(lvlParam) && lvlParam >= 1 && lvlParam <= LEVELS.length
       ? lvlParam - 1
       : 0;
+
+  if (preview === 'victory') {
+    return {
+      initialPhase: 'victory',
+      startLevelIdx: clampedIdx,
+      previewScores: LEVELS.map((lvl, idx) => Math.max(1, lvl.par + (idx % 3 === 0 ? -1 : 0))),
+      previewStrokes: 0,
+    };
+  }
+
+  if (preview === 'clear') {
+    return {
+      initialPhase: 'level_clear',
+      startLevelIdx: clampedIdx,
+      previewScores: null,
+      previewStrokes: 1,
+    };
+  }
+
+  if (view === 'courses') {
+    return {
+      initialPhase: 'course_select',
+      startLevelIdx: clampedIdx,
+      previewScores: null,
+      previewStrokes: 0,
+    };
+  }
+
   return {
-    initialPhase: previewVictory ? 'victory' : autostart ? 'playing' : 'title',
+    initialPhase: autostart ? 'playing' : 'title',
     startLevelIdx: clampedIdx,
-    previewScores: previewVictory
-      ? LEVELS.map((lvl, idx) => Math.max(1, lvl.par + (idx % 3 === 0 ? -1 : 0)))
-      : null,
+    previewScores: null,
+    previewStrokes: 0,
   };
 }
 
@@ -59,26 +79,37 @@ export default function App() {
   const canvasHandleRef = useRef<GolfCanvasHandle | null>(null);
 
   const [phase, setPhase] = useState<GamePhase>(initialParams.initialPhase);
+  const [courseReturnPhase, setCourseReturnPhase] = useState<'title' | 'paused'>('title');
   const [levelIndex, setLevelIndex] = useState<number>(initialParams.startLevelIdx);
-  const [strokes, setStrokes] = useState<number>(0);
+  const [strokes, setStrokes] = useState<number>(initialParams.previewStrokes);
   const [holeStrokes, setHoleStrokes] = useState<number[]>(() =>
     initialParams.previewScores ?? LEVELS.map(() => 0)
   );
   const [muted, setMuted] = useState<boolean>(false);
-  const [bestTotal, setBestTotal] = useState<number | null>(() => readStoredBest());
+  const [progress, setProgress] = useState<ProgressStore>(() => loadProgressFromStorage());
+  const [lastClearNewBest, setLastClearNewBest] = useState<boolean>(false);
   const github = useGithubAuth();
 
   const totalPar = useMemo(
     () => LEVELS.reduce((acc, lvl) => acc + lvl.par, 0),
     []
   );
+  const overallProgress = useMemo(
+    () => getOverallProgressStats(progress),
+    [progress]
+  );
 
   const currentLevel = LEVELS[levelIndex] ?? LEVELS[0];
+  const currentHoleRecord = progress.holes[currentLevel.id] ?? null;
 
   // Mirror state machine onto document.body.dataset for reliable accessibility & verification
   useEffect(() => {
     const bodyState =
-      phase === 'victory' || phase === 'level_clear' ? 'gameover' : phase;
+      phase === 'victory' || phase === 'level_clear'
+        ? 'gameover'
+        : phase === 'course_select'
+        ? 'title'
+        : phase;
     document.body.dataset.state = bodyState;
     document.body.dataset.phase = phase;
     document.body.dataset.level = String(currentLevel.id);
@@ -92,16 +123,46 @@ export default function App() {
     setLevelIndex(0);
     setStrokes(0);
     setHoleStrokes(LEVELS.map(() => 0));
+    setLastClearNewBest(false);
     setPhase('playing');
     document.body.dataset.state = 'playing';
     canvasHandleRef.current?.resetBallToTee();
   }, []);
+
+  const handleSelectHole = useCallback((targetIndex: number) => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    const safeIdx = Math.max(0, Math.min(LEVELS.length - 1, targetIndex));
+    setLevelIndex(safeIdx);
+    setStrokes(0);
+    setHoleStrokes(LEVELS.map(() => 0));
+    setLastClearNewBest(false);
+    setPhase('playing');
+    document.body.dataset.state = 'playing';
+    canvasHandleRef.current?.resetBallToTee();
+  }, []);
+
+  const handleOpenCoursesFromTitle = useCallback(() => {
+    setCourseReturnPhase('title');
+    setPhase('course_select');
+  }, []);
+
+  const handleOpenCoursesFromPause = useCallback(() => {
+    setCourseReturnPhase('paused');
+    setPhase('course_select');
+  }, []);
+
+  const handleCloseCourses = useCallback(() => {
+    setPhase(courseReturnPhase);
+  }, [courseReturnPhase]);
 
   const handleRestartHole = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
     setStrokes(0);
+    setLastClearNewBest(false);
     setPhase('playing');
     canvasHandleRef.current?.resetBallToTee();
   }, []);
@@ -110,31 +171,47 @@ export default function App() {
     setStrokes((prev) => prev + 1);
   }, []);
 
-  const handleHoleSunk = useCallback(() => {
-    setStrokes((currentStrokes) => {
-      const recordedStrokes = Math.max(1, currentStrokes);
-      setHoleStrokes((prev) => {
-        const next = [...prev];
-        next[levelIndex] = recordedStrokes;
+  const strokesRef = useRef<number>(strokes);
+  const holeStrokesRef = useRef<number[]>(holeStrokes);
+  const progressRef = useRef<ProgressStore>(progress);
+  strokesRef.current = strokes;
+  holeStrokesRef.current = holeStrokes;
+  progressRef.current = progress;
 
-        if (levelIndex >= LEVELS.length - 1) {
-          const total = next.reduce((sum, n) => sum + n, 0);
-          setBestTotal((prevBest) => {
-            if (prevBest === null || total < prevBest) {
-              writeStoredBest(total);
-              return total;
-            }
-            return prevBest;
-          });
-          golfAudio.playVictoryFanfare();
-          setPhase('victory');
-        } else {
-          setPhase('level_clear');
-        }
-        return next;
-      });
-      return recordedStrokes;
-    });
+  const handleHoleSunk = useCallback(() => {
+    const level = LEVELS[levelIndex] ?? LEVELS[0];
+    const recordedStrokes = Math.max(1, strokesRef.current);
+
+    const nextHoleStrokes = [...holeStrokesRef.current];
+    nextHoleStrokes[levelIndex] = recordedStrokes;
+    setHoleStrokes(nextHoleStrokes);
+    setStrokes(recordedStrokes);
+
+    const { progress: afterHole, isNewBest } = recordHoleCompletion(
+      progressRef.current,
+      level.id,
+      recordedStrokes,
+      level.par
+    );
+    setLastClearNewBest(isNewBest);
+
+    let finalProgress = afterHole;
+    if (levelIndex >= LEVELS.length - 1) {
+      const completedFullTour = nextHoleStrokes.every((s) => s > 0);
+      if (completedFullTour) {
+        const total = nextHoleStrokes.reduce((sum, n) => sum + n, 0);
+        const bestRes = recordFullCourseBest(afterHole, total);
+        finalProgress = bestRes.progress;
+      }
+      saveProgressToStorage(finalProgress);
+      setProgress(finalProgress);
+      golfAudio.playVictoryFanfare();
+      setPhase('victory');
+    } else {
+      saveProgressToStorage(finalProgress);
+      setProgress(finalProgress);
+      setPhase('level_clear');
+    }
   }, [levelIndex]);
 
   const handleNextHole = useCallback(() => {
@@ -144,6 +221,7 @@ export default function App() {
     const nextIdx = Math.min(LEVELS.length - 1, levelIndex + 1);
     setLevelIndex(nextIdx);
     setStrokes(0);
+    setLastClearNewBest(false);
     setPhase('playing');
   }, [levelIndex]);
 
@@ -151,6 +229,9 @@ export default function App() {
     setMuted((prev) => {
       const next = !prev;
       golfAudio.setMuted(next);
+      if (!next) {
+        golfAudio.playButtonClick();
+      }
       return next;
     });
   }, []);
@@ -158,11 +239,12 @@ export default function App() {
   const handleReturnToTitle = useCallback(() => {
     setLevelIndex(0);
     setStrokes(0);
+    setLastClearNewBest(false);
     setPhase('title');
     canvasHandleRef.current?.resetBallToTee();
   }, []);
 
-  // Keyboard bindings: Enter/Space on title/clear/victory, P/Escape pause, R restart, M mute
+  // Keyboard bindings: Enter/Space on title/clear/victory, Escape on course_select, P/Escape pause, R restart, M mute
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
@@ -172,6 +254,14 @@ export default function App() {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           handleStartCourse();
+        }
+        return;
+      }
+
+      if (phase === 'course_select') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          handleCloseCourses();
         }
         return;
       }
@@ -218,18 +308,20 @@ export default function App() {
   }, [
     phase,
     handleStartCourse,
+    handleCloseCourses,
     handleNextHole,
     handleRestartHole,
     handleToggleMute,
   ]);
 
   return (
-    <main className="relative h-screen w-screen overflow-hidden select-none">
+    <main className="relative h-[100dvh] w-screen overflow-hidden select-none">
       {/* Isolated Full-Viewport 2D Arcade Canvas */}
       <GolfCanvas
         ref={canvasHandleRef}
         levelIndex={levelIndex}
         phase={phase}
+        strokes={strokes}
         onStroke={handleStroke}
         onWaterPenalty={handleStroke}
         onHoleSunk={handleHoleSunk}
@@ -239,8 +331,11 @@ export default function App() {
       {phase === 'title' && (
         <TitleScreen
           totalLevels={LEVELS.length}
-          bestTotal={bestTotal}
+          bestTotal={progress.bestFullCourseTotal}
           totalPar={totalPar}
+          earnedStars={overallProgress.earnedStars}
+          maxStars={overallProgress.maxStars}
+          completedHoles={overallProgress.completedHoles}
           githubUser={github.user}
           githubConnecting={github.connecting}
           githubError={github.error}
@@ -249,11 +344,21 @@ export default function App() {
           onDisconnectGithub={github.disconnect}
           onDismissGithubError={github.clearError}
           onStart={handleStartCourse}
+          onOpenCourses={handleOpenCoursesFromTitle}
+        />
+      )}
+
+      {/* Illustrated 4-World Course Selection */}
+      {phase === 'course_select' && (
+        <CourseSelectModal
+          progress={progress}
+          onSelectHole={handleSelectHole}
+          onClose={handleCloseCourses}
         />
       )}
 
       {/* Active Playing HUD */}
-      {phase !== 'title' && (
+      {phase !== 'title' && phase !== 'course_select' && (
         <GameHud
           level={currentLevel}
           levelNumber={currentLevel.id}
@@ -274,6 +379,7 @@ export default function App() {
           levelName={currentLevel.name}
           onResume={() => setPhase('playing')}
           onRestart={handleRestartHole}
+          onSelectCourse={handleOpenCoursesFromPause}
           onTitle={handleReturnToTitle}
         />
       )}
@@ -285,6 +391,8 @@ export default function App() {
           levelName={currentLevel.name}
           strokes={strokes}
           par={currentLevel.par}
+          bestStrokes={currentHoleRecord?.bestStrokes ?? null}
+          isNewBest={lastClearNewBest}
           onNextHole={handleNextHole}
           onReplayHole={handleRestartHole}
         />
@@ -294,7 +402,7 @@ export default function App() {
       {phase === 'victory' && (
         <VictoryModal
           holeStrokes={holeStrokes}
-          bestTotal={bestTotal}
+          bestTotal={progress.bestFullCourseTotal}
           githubUser={github.user}
           githubConnecting={github.connecting}
           githubError={github.error}
@@ -302,6 +410,7 @@ export default function App() {
           onConnectGithub={github.connect}
           onShareScorecard={github.shareScorecard}
           onPlayAgain={handleStartCourse}
+          onSelectCourse={handleOpenCoursesFromTitle}
           onTitle={handleReturnToTitle}
         />
       )}

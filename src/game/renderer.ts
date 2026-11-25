@@ -16,6 +16,10 @@ export interface SplashCallout {
   y: number;
   life: number;
   maxLife: number;
+  text?: string;
+  fillColor?: string;
+  strokeColor?: string;
+  scale?: number;
 }
 
 export interface AimVisualState {
@@ -217,7 +221,7 @@ function drawGardenIsland(
     return;
   }
 
-  // Outer halo (foam on water themes, soft sunlit grass border on garden theme)
+  // Outer halo (foam on water themes, soft sunlit grass border on garden theme, powdery frost on frost theme)
   drawRoundedRectPath(
     ctx,
     rx - 10 - foamPulse,
@@ -227,7 +231,9 @@ function drawGardenIsland(
     54
   );
   ctx.fillStyle =
-    theme === 'garden'
+    theme === 'frost'
+      ? 'rgba(224, 242, 254, 0.36)'
+      : theme === 'garden'
       ? 'rgba(255, 250, 224, 0.28)'
       : theme === 'beach'
       ? 'rgba(255, 251, 235, 0.42)'
@@ -237,13 +243,21 @@ function drawGardenIsland(
   // Island drop shadow
   drawRoundedRectPath(ctx, rx + 4, ry + 12, rw, rh, 44);
   ctx.fillStyle =
-    theme === 'garden' ? 'rgba(20, 68, 32, 0.28)' : 'rgba(9, 66, 82, 0.32)';
+    theme === 'frost'
+      ? 'rgba(15, 42, 74, 0.34)'
+      : theme === 'garden'
+      ? 'rgba(20, 68, 32, 0.28)'
+      : 'rgba(9, 66, 82, 0.32)';
   ctx.fill();
 
   // Deck fill tuned per theme
   drawRoundedRectPath(ctx, rx, ry, rw, rh, 44);
   const sandGrad = ctx.createLinearGradient(rx, ry, rx, ry + rh);
-  if (theme === 'beach') {
+  if (theme === 'frost') {
+    sandGrad.addColorStop(0, '#F7FCFF');
+    sandGrad.addColorStop(0.55, '#E3F2FD');
+    sandGrad.addColorStop(1, '#C9E3F8');
+  } else if (theme === 'beach') {
     sandGrad.addColorStop(0, '#FFEFB8');
     sandGrad.addColorStop(0.55, '#FAD786');
     sandGrad.addColorStop(1, '#EBB85E');
@@ -260,14 +274,39 @@ function drawGardenIsland(
   ctx.fill();
   ctx.lineWidth = 4;
   ctx.strokeStyle =
-    theme === 'beach' ? '#CE8D38' : theme === 'garden' ? '#B9A06B' : '#C99B53';
+    theme === 'frost'
+      ? '#7AA7CC'
+      : theme === 'beach'
+      ? '#CE8D38'
+      : theme === 'garden'
+      ? '#B9A06B'
+      : '#C99B53';
   ctx.stroke();
 
-  // Subtle patio stone seams (resort/garden) or warm beach sand contours (beach)
+  // Subtle patio stone seams (resort/garden), warm beach sand contours (beach), or soft snowdrifts (frost)
   ctx.save();
   drawRoundedRectPath(ctx, rx + 4, ry + 4, rw - 8, rh - 8, 40);
   ctx.clip();
-  if (theme === 'beach') {
+  if (theme === 'frost') {
+    ctx.strokeStyle = 'rgba(125, 179, 218, 0.26)';
+    ctx.lineWidth = 2.2;
+    for (let y = ry + 36; y < ry + rh; y += 56) {
+      ctx.beginPath();
+      ctx.moveTo(rx, y);
+      ctx.quadraticCurveTo(rx + rw * 0.3, y - 12, rx + rw * 0.65, y + 7);
+      ctx.quadraticCurveTo(rx + rw * 0.86, y + 14, rx + rw, y - 4);
+      ctx.stroke();
+    }
+    // Delicate snow sparkle dots across the snowbanks
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    for (let i = 0; i < 24; i++) {
+      const sx = rx + ((i * 97 + 41) % (rw - 24)) + 12;
+      const sy = ry + ((i * 61 + 29) % (rh - 24)) + 12;
+      ctx.beginPath();
+      ctx.arc(sx, sy, (i % 3) + 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (theme === 'beach') {
     ctx.strokeStyle = 'rgba(196, 134, 48, 0.16)';
     ctx.lineWidth = 2;
     for (let y = ry + 34; y < ry + rh; y += 54) {
@@ -418,6 +457,167 @@ function drawDecorProp(ctx: CanvasRenderingContext2D, prop: DecorProp, time: num
     ctx.lineWidth = 2;
     ctx.strokeStyle = '#A89371';
     ctx.stroke();
+  } else if (prop.kind === 'snow-pine') {
+    // Cast cool snow shadow
+    ctx.fillStyle = 'rgba(30, 64, 108, 0.18)';
+    ctx.beginPath();
+    ctx.arc(5, 7, 25, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Two layered scalloped snow-dusted evergreen tiers
+    const drawTier = (radius: number, fill: string, stroke: string, points: number, rot: number) => {
+      ctx.beginPath();
+      for (let i = 0; i < points * 2; i++) {
+        const a = rot + (i * Math.PI) / points;
+        const r = i % 2 === 0 ? radius : radius * 0.62;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = stroke;
+      ctx.stroke();
+    };
+
+    drawTier(25, '#1D5E52', '#0F3D36', 8, 0.2);
+    drawTier(19, '#2A7F6E', '#134E4A', 8, 0.6);
+    // Frosted snow-capped crown resting on the pine tips
+    drawTier(12.5, '#F0F9FF', '#7DD3FC', 6, 0.35);
+    ctx.beginPath();
+    ctx.arc(-1, -1, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill();
+  } else if (prop.kind === 'crystal') {
+    // Ground frost shadow
+    ctx.fillStyle = 'rgba(14, 116, 144, 0.22)';
+    ctx.beginPath();
+    ctx.ellipse(3, 6, 18, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    const shards = [
+      { angle: -0.55, len: 21, w: 9, fill: '#38BDF8', hi: '#E0F2FE' },
+      { angle: 0.42, len: 19, w: 8.5, fill: '#0EA5E9', hi: '#BAE6FD' },
+      { angle: 0.0, len: 24, w: 10, fill: '#7DD3FC', hi: '#FFFFFF' },
+    ];
+    for (const s of shards) {
+      ctx.save();
+      ctx.rotate(s.angle);
+      ctx.beginPath();
+      ctx.moveTo(0, -s.len * 0.68);
+      ctx.lineTo(s.w * 0.55, 0);
+      ctx.lineTo(0, s.len * 0.45);
+      ctx.lineTo(-s.w * 0.55, 0);
+      ctx.closePath();
+      ctx.fillStyle = s.fill;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#0C4A6E';
+      ctx.stroke();
+
+      // Facet highlight half
+      ctx.beginPath();
+      ctx.moveTo(0, -s.len * 0.62);
+      ctx.lineTo(0, s.len * 0.35);
+      ctx.lineTo(-s.w * 0.44, 0);
+      ctx.closePath();
+      ctx.fillStyle = s.hi;
+      ctx.globalAlpha = 0.65;
+      ctx.fill();
+      ctx.restore();
+    }
+  } else if (prop.kind === 'snowman') {
+    // Soft winter shadow
+    ctx.fillStyle = 'rgba(30, 64, 108, 0.18)';
+    ctx.beginPath();
+    ctx.ellipse(4, 6, 19, 17, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Stick arms
+    ctx.strokeStyle = '#6B3E1E';
+    ctx.lineWidth = 2.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-13, 2);
+    ctx.lineTo(-24, -4);
+    ctx.moveTo(13, 2);
+    ctx.lineTo(24, -3);
+    ctx.stroke();
+
+    // Lower snow body
+    ctx.beginPath();
+    ctx.arc(0, 2, 16, 0, Math.PI * 2);
+    ctx.fillStyle = '#F0F9FF';
+    ctx.fill();
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = '#3B6A94';
+    ctx.stroke();
+
+    // Cheerful coral winter scarf collar
+    ctx.beginPath();
+    ctx.arc(0, -2, 11.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#FF595E';
+    ctx.fill();
+    ctx.strokeStyle = '#7F1D1D';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Scarf tail
+    ctx.beginPath();
+    ctx.moveTo(7, 4);
+    ctx.lineTo(15, 13);
+    ctx.lineTo(9, 15);
+    ctx.lineTo(3, 7);
+    ctx.closePath();
+    ctx.fillStyle = '#FF595E';
+    ctx.fill();
+    ctx.stroke();
+
+    // Snowman head
+    ctx.beginPath();
+    ctx.arc(0, -4, 10, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#3B6A94';
+    ctx.stroke();
+
+    // Carrot nose + coal eyes
+    ctx.beginPath();
+    ctx.moveTo(0, -10);
+    ctx.lineTo(3, -18);
+    ctx.lineTo(-3, -11);
+    ctx.closePath();
+    ctx.fillStyle = '#F97316';
+    ctx.fill();
+
+    ctx.fillStyle = '#1E293B';
+    ctx.beginPath();
+    ctx.arc(-3.5, -7, 1.5, 0, Math.PI * 2);
+    ctx.arc(3.5, -7, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (prop.kind === 'frost-rock') {
+    ctx.fillStyle = 'rgba(30, 58, 95, 0.2)';
+    ctx.beginPath();
+    ctx.ellipse(3, 5, 18, 12, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#7D9AB5';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 17, 11.5, 0.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#335270';
+    ctx.stroke();
+
+    // Powdery snow cap on top of stone
+    ctx.fillStyle = '#F0F9FF';
+    ctx.beginPath();
+    ctx.ellipse(-2, -3, 11, 5.5, 0.1, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   ctx.restore();
@@ -425,6 +625,7 @@ function drawDecorProp(ctx: CanvasRenderingContext2D, prop: DecorProp, time: num
 
 function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
   const isNeon = level.theme === 'neon';
+  const isFrost = level.theme === 'frost';
 
   for (const poly of level.turfPolygons) {
     if (poly.points.length < 3) continue;
@@ -437,23 +638,40 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
     }
     ctx.closePath();
 
-    // Base putting surface color
-    ctx.fillStyle = isNeon ? '#26124D' : '#38B85C';
+    // Base putting surface color (frosty alpine blue for Frost Falls — clear contrast with bright cyan-white ice & white golf ball)
+    ctx.fillStyle = isNeon ? '#26124D' : isFrost ? '#5594B4' : '#38B85C';
     ctx.fill();
 
     // Clip stripes & lane markings inside turf polygon
     ctx.clip();
 
     const stripeWidth = 42;
-    ctx.fillStyle = isNeon ? '#1E0E3E' : '#2FA752';
+    ctx.fillStyle = isNeon ? '#1E0E3E' : isFrost ? '#4A86A6' : '#2FA752';
     for (let x = 0; x < level.worldWidth + stripeWidth; x += stripeWidth * 2) {
       ctx.fillRect(x, 0, stripeWidth, level.worldHeight);
     }
 
     // Soft inner shadow along turf polygon edges for recessed depth (while polygon path is active)
-    ctx.strokeStyle = isNeon ? 'rgba(9, 4, 24, 0.55)' : 'rgba(13, 74, 34, 0.28)';
+    ctx.strokeStyle = isNeon
+      ? 'rgba(9, 4, 24, 0.55)'
+      : isFrost
+      ? 'rgba(20, 56, 86, 0.34)'
+      : 'rgba(13, 74, 34, 0.28)';
     ctx.lineWidth = 14;
     ctx.stroke();
+
+    if (isFrost) {
+      // Subtle matte snow-grain stipple on normal winter turf so it reads distinctly matte vs glossy ice
+      ctx.fillStyle = 'rgba(240, 249, 255, 0.14)';
+      for (let x = 104; x < level.worldWidth - 90; x += 38) {
+        for (let y = 96; y < level.worldHeight - 80; y += 34) {
+          const ox = ((x + y) % 13) - 6;
+          ctx.beginPath();
+          ctx.arc(x + ox, y, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
 
     if (isNeon) {
       // Subtle cyber grid lines on dark purple putting surface
@@ -535,15 +753,15 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
   // Draw crisp tee-off mat around starting tee
   ctx.save();
   drawRoundedRectPath(ctx, level.tee.x - 24, level.tee.y - 34, 48, 68, 10);
-  ctx.fillStyle = isNeon ? '#160B33' : '#258D44';
+  ctx.fillStyle = isNeon ? '#160B33' : isFrost ? '#356E8E' : '#258D44';
   ctx.fill();
   ctx.lineWidth = 2.5;
-  ctx.strokeStyle = isNeon ? '#38BDF8' : '#7CE696';
+  ctx.strokeStyle = isNeon ? '#38BDF8' : isFrost ? '#BAE6FD' : '#7CE696';
   ctx.stroke();
 
   // Small tee markers
-  ctx.fillStyle = isNeon ? '#F43F8E' : '#FFFFFF';
-  ctx.strokeStyle = isNeon ? '#FDF2F8' : '#1E5B31';
+  ctx.fillStyle = isNeon ? '#F43F8E' : isFrost ? '#E0F2FE' : '#FFFFFF';
+  ctx.strokeStyle = isNeon ? '#FDF2F8' : isFrost ? '#0C4A6E' : '#1E5B31';
   ctx.lineWidth = 2;
   for (const dy of [-22, 22]) {
     ctx.beginPath();
@@ -553,7 +771,11 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
   }
 
   // Subtle tee dot
-  ctx.fillStyle = isNeon ? 'rgba(56, 189, 248, 0.7)' : 'rgba(255, 255, 255, 0.5)';
+  ctx.fillStyle = isNeon
+    ? 'rgba(56, 189, 248, 0.7)'
+    : isFrost
+    ? 'rgba(224, 242, 254, 0.78)'
+    : 'rgba(255, 255, 255, 0.5)';
   ctx.beginPath();
   ctx.arc(level.tee.x, level.tee.y, 4, 0, Math.PI * 2);
   ctx.fill();
@@ -645,6 +867,177 @@ function drawSandHazards(ctx: CanvasRenderingContext2D, level: LevelDefinition):
   }
 }
 
+function drawIceHazards(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
+  const hazards = level.hazards;
+  if (!hazards) return;
+  const iceZones = hazards.filter((z) => z.kind === 'ice');
+  if (iceZones.length === 0) return;
+
+  // Clip all ice sheets cleanly to the playable turf polygon(s) so angled/curved sheets never bleed outside walls
+  ctx.save();
+  ctx.beginPath();
+  for (const poly of level.turfPolygons) {
+    if (poly.points.length < 3) continue;
+    ctx.moveTo(poly.points[0].x, poly.points[0].y);
+    for (let i = 1; i < poly.points.length; i++) {
+      ctx.lineTo(poly.points[i].x, poly.points[i].y);
+    }
+    ctx.closePath();
+  }
+  ctx.clip();
+
+  for (const zone of iceZones) {
+    ctx.save();
+    ctx.translate(zone.x, zone.y);
+    if (zone.angle) {
+      ctx.rotate(zone.angle);
+    }
+
+    const localZone: SurfaceZone = { ...zone, x: 0, y: 0, angle: 0 };
+
+    // Bright glossy glacier-ice fill — unmistakably slick vs matte frosty blue turf
+    traceHazardPath(ctx, localZone);
+    const iceGrad = ctx.createLinearGradient(
+      -zone.w * 0.45,
+      -zone.h * 0.45,
+      zone.w * 0.45,
+      zone.h * 0.45
+    );
+    iceGrad.addColorStop(0, '#E8FBFF');
+    iceGrad.addColorStop(0.45, '#BCEEFF');
+    iceGrad.addColorStop(1, '#84D9FA');
+    ctx.fillStyle = iceGrad;
+    ctx.fill();
+
+    // Diagonal glass sheen ribbons & delicate crystalline ice facets clipped inside sheet
+    ctx.save();
+    traceHazardPath(ctx, localZone);
+    ctx.clip();
+
+    // Glossy diagonal specular stripes
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.44)';
+    const diagSpan = Math.max(zone.w, zone.h) + 80;
+    for (let offset = -diagSpan; offset <= diagSpan; offset += 48) {
+      ctx.beginPath();
+      ctx.moveTo(offset - 12, -zone.h);
+      ctx.lineTo(offset + 4, -zone.h);
+      ctx.lineTo(offset - 38, zone.h);
+      ctx.lineTo(offset - 54, zone.h);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Subtle frosty inner rim glow
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 6;
+    traceHazardPath(ctx, localZone);
+    ctx.stroke();
+
+    // Subtle stylized ice-crystal crack glints
+    ctx.strokeStyle = 'rgba(14, 116, 144, 0.18)';
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-zone.w * 0.28, -zone.h * 0.12);
+    ctx.lineTo(-zone.w * 0.14, -zone.h * 0.24);
+    ctx.lineTo(-zone.w * 0.04, -zone.h * 0.16);
+    ctx.moveTo(zone.w * 0.12, zone.h * 0.16);
+    ctx.lineTo(zone.w * 0.26, zone.h * 0.04);
+    ctx.stroke();
+    ctx.restore();
+
+    // Crisp cartoon glacier border separating slippery ice from normal ground
+    traceHazardPath(ctx, localZone);
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = '#0284C7';
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+function drawIceSparkles(
+  ctx: CanvasRenderingContext2D,
+  level: LevelDefinition,
+  time: number
+): void {
+  const hazards = level.hazards;
+  if (!hazards) return;
+
+  for (let zi = 0; zi < hazards.length; zi++) {
+    const zone = hazards[zi];
+    if (zone.kind !== 'ice') continue;
+
+    // Three subtle animated 4-point icy sparkles per ice sheet
+    const offsets = [
+      [-0.26, -0.22],
+      [0.24, 0.18],
+      [0.02, -0.05],
+    ];
+    for (let k = 0; k < offsets.length; k++) {
+      const phase = (Math.sin(time * 3.1 + zi * 2.1 + k * 2.4) + 1) * 0.5;
+      if (phase < 0.25) continue;
+      const alpha = (phase - 0.25) / 0.75;
+      const [ox, oy] = offsets[k];
+      let lx = zone.w * ox;
+      let ly = zone.h * oy;
+      if (zone.angle) {
+        const c = Math.cos(zone.angle);
+        const s = Math.sin(zone.angle);
+        const rx = lx * c - ly * s;
+        const ry = lx * s + ly * c;
+        lx = rx;
+        ly = ry;
+      }
+      const sx = zone.x + lx;
+      const sy = zone.y + ly;
+      const r = 3.5 + alpha * 3.8;
+
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.globalAlpha = alpha * 0.88;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.moveTo(0, -r);
+      ctx.quadraticCurveTo(0, 0, r, 0);
+      ctx.quadraticCurveTo(0, 0, 0, r);
+      ctx.quadraticCurveTo(0, 0, -r, 0);
+      ctx.quadraticCurveTo(0, 0, 0, -r);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+}
+
+function drawSnowParticles(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  time: number
+): void {
+  ctx.save();
+  for (let i = 0; i < 36; i++) {
+    const seed = i * 137.5;
+    const speedY = 22 + (i % 5) * 9;
+    const driftX = 14 + (i % 4) * 5;
+    const baseX = (seed * 7.3) % (width + 60);
+    const baseY = (seed * 3.9) % (height + 40);
+    const x = ((baseX + time * driftX + Math.sin(time * 1.1 + i) * 16) % (width + 40) + (width + 40)) % (width + 40) - 20;
+    const y = (baseY + time * speedY) % (height + 30) - 15;
+    const radius = 1.6 + (i % 3) * 1.15;
+    const alpha = 0.42 + (i % 4) * 0.13;
+
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha.toFixed(2)})`;
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawWaterHazards(
   ctx: CanvasRenderingContext2D,
   level: LevelDefinition,
@@ -720,18 +1113,109 @@ function drawSplashCallout(
   if (!callout || callout.life <= 0) return;
   const progress = 1 - callout.life / callout.maxLife;
   const alpha = callout.life < 0.35 ? callout.life / 0.35 : 1;
-  const yOffset = -18 - progress * 28;
+  const popScale = progress < 0.16 ? 0.72 + (progress / 0.16) * 0.36 : 1.08 - Math.min(0.08, (progress - 0.16) * 0.25);
+  const yOffset = -20 - progress * 34;
+  const label = callout.text ?? 'SPLASH! +1';
+  const fillColor = callout.fillColor ?? '#E0F2FE';
+  const strokeColor = callout.strokeColor ?? '#0B4F6C';
+  const fontSize = Math.round(18 * (callout.scale ?? 1));
 
   ctx.save();
+  ctx.translate(callout.x, callout.y + yOffset);
+  ctx.scale(popScale, popScale);
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-  ctx.font = '700 18px "Fredoka", "Plus Jakarta Sans", sans-serif';
+  ctx.font = `700 ${fontSize}px "Fredoka", "Plus Jakarta Sans", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.lineWidth = 5;
-  ctx.strokeStyle = '#0B4F6C';
-  ctx.strokeText('SPLASH! +1', callout.x, callout.y + yOffset);
-  ctx.fillStyle = '#E0F2FE';
-  ctx.fillText('SPLASH! +1', callout.x, callout.y + yOffset);
+  ctx.lineWidth = 5.5;
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = strokeColor;
+  ctx.strokeText(label, 0, 0);
+  ctx.fillStyle = fillColor;
+  ctx.fillText(label, 0, 0);
+  ctx.restore();
+}
+
+function drawThemeAmbience(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  theme: LevelDefinition['theme'] = 'resort',
+  time: number
+): void {
+  if (theme === 'frost') {
+    drawSnowParticles(ctx, width, height, time);
+    return;
+  }
+
+  ctx.save();
+  if (theme === 'neon') {
+    // Subtle pulsing neon grid star-beacons around the outer viewport perimeter
+    for (let i = 0; i < 18; i++) {
+      const seed = i * 97.3;
+      const gx = Math.floor(((seed * 13.7) % Math.max(96, width - 48)) / 48) * 48;
+      const gy = Math.floor(((seed * 7.1) % Math.max(96, height - 48)) / 48) * 48;
+      // Keep central playfield clear; glow gently around margins
+      const nx = gx / Math.max(1, width);
+      const ny = gy / Math.max(1, height);
+      if (nx > 0.14 && nx < 0.86 && ny > 0.15 && ny < 0.85) continue;
+
+      const pulse = (Math.sin(time * 2.4 + i * 1.7) + 1) * 0.5;
+      if (pulse < 0.2) continue;
+      const alpha = (pulse - 0.2) * 0.55;
+      const color = i % 2 === 0 ? `rgba(56, 189, 248, ${alpha.toFixed(2)})` : `rgba(244, 63, 142, ${alpha.toFixed(2)})`;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(gx, gy, 1.8 + pulse * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (theme === 'beach') {
+    // Gentle drifting sea-breeze shimmer arcs along the outer ocean edges
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 14; i++) {
+      const seed = i * 83.1;
+      const y = ((seed * 5.7) % Math.max(80, height - 30)) + 15;
+      const ny = y / Math.max(1, height);
+      const baseX = (seed * 11.3 + time * (10 + (i % 3) * 4)) % (width + 80) - 40;
+      const nx = baseX / Math.max(1, width);
+      if (nx > 0.11 && nx < 0.89 && ny > 0.12 && ny < 0.88) continue;
+
+      const shimmer = (Math.sin(time * 2.2 + i * 1.4) + 1) * 0.5;
+      ctx.strokeStyle = `rgba(224, 251, 252, ${(0.12 + shimmer * 0.2).toFixed(2)})`;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(baseX, y);
+      ctx.quadraticCurveTo(baseX + 16, y - 3.5, baseX + 32, y);
+      ctx.stroke();
+    }
+  } else {
+    // Sunny Garden / Resort: warm drifting sunbeam pollen specks & gentle breeze motes around outer border
+    for (let i = 0; i < 20; i++) {
+      const seed = i * 119.7;
+      const x =
+        (((seed * 9.3 + time * (11 + (i % 4) * 3) + Math.sin(time * 1.2 + i) * 14) % (width + 40)) +
+          (width + 40)) %
+          (width + 40) -
+        20;
+      const y =
+        (((seed * 5.1 + Math.sin(time * 0.9 + i * 1.3) * 18) % (height + 20)) + (height + 20)) %
+          (height + 20) -
+        10;
+      const nx = x / Math.max(1, width);
+      const ny = y / Math.max(1, height);
+      if (nx > 0.13 && nx < 0.87 && ny > 0.14 && ny < 0.86) continue;
+
+      const twinkle = (Math.sin(time * 2.1 + i * 2.2) + 1) * 0.5;
+      const r = 1.6 + (i % 3) * 0.85;
+      ctx.fillStyle =
+        theme === 'garden' && i % 3 === 0
+          ? `rgba(254, 240, 138, ${(0.28 + twinkle * 0.34).toFixed(2)})`
+          : `rgba(255, 253, 240, ${(0.2 + twinkle * 0.28).toFixed(2)})`;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   ctx.restore();
 }
 
@@ -919,18 +1403,120 @@ function drawWoodenWall(
     return;
   }
 
+  if (wall.kind === 'frost-stone') {
+    // Drop shadow
+    ctx.save();
+    ctx.translate(4, 6);
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    ctx.fillStyle = 'rgba(15, 42, 74, 0.3)';
+    ctx.fill();
+    ctx.restore();
+
+    // Chiseled alpine stone block
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    const stoneGrad = ctx.createLinearGradient(0, -hh, 0, hh);
+    stoneGrad.addColorStop(0, '#CBD5E1');
+    stoneGrad.addColorStop(0.45, '#94A3B8');
+    stoneGrad.addColorStop(1, '#64748B');
+    ctx.fillStyle = stoneGrad;
+    ctx.fill();
+
+    // Snow-dusted top bevel & subtle rock chisel seams
+    ctx.save();
+    drawRoundedRectPath(ctx, -hw + 2, -hh + 2, wall.w - 4, wall.h - 4, Math.max(2, radius - 2));
+    ctx.clip();
+    ctx.fillStyle = '#F0F9FF';
+    ctx.fillRect(-hw, -hh, wall.w, Math.min(6, wall.h * 0.32));
+
+    ctx.strokeStyle = 'rgba(30, 58, 95, 0.24)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    if (wall.w >= wall.h) {
+      ctx.moveTo(-hw * 0.3, -hh);
+      ctx.lineTo(-hw * 0.2, hh);
+      ctx.moveTo(hw * 0.32, -hh);
+      ctx.lineTo(hw * 0.22, hh);
+    } else {
+      ctx.moveTo(-hw, -hh * 0.28);
+      ctx.lineTo(hw, -hh * 0.16);
+      ctx.moveTo(-hw, hh * 0.32);
+      ctx.lineTo(hw, hh * 0.2);
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#1E3A5F';
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (wall.kind === 'crystal') {
+    // Translucent icy glow halo
+    drawRoundedRectPath(ctx, -hw - 3, -hh - 3, wall.w + 6, wall.h + 6, radius + 2);
+    ctx.fillStyle = 'rgba(125, 211, 252, 0.35)';
+    ctx.fill();
+
+    // Faceted glacier crystal obstacle
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    const crysGrad = ctx.createLinearGradient(-hw, -hh, hw, hh);
+    crysGrad.addColorStop(0, '#E0F7FF');
+    crysGrad.addColorStop(0.45, '#5DD3FC');
+    crysGrad.addColorStop(1, '#0284C7');
+    ctx.fillStyle = crysGrad;
+    ctx.fill();
+
+    // Geometric crystal facets inside
+    ctx.save();
+    drawRoundedRectPath(ctx, -hw + 2, -hh + 2, wall.w - 4, wall.h - 4, Math.max(2, radius - 2));
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.beginPath();
+    ctx.moveTo(-hw, -hh);
+    ctx.lineTo(hw * 0.4, -hh);
+    ctx.lineTo(-hw * 0.2, hh);
+    ctx.lineTo(-hw, hh);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-hw * 0.7, -hh * 0.5);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(hw * 0.7, hh * 0.45);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(hw * 0.5, -hh * 0.6);
+    ctx.stroke();
+    ctx.restore();
+
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = '#0C4A6E';
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
   // Soft cast drop shadow onto turf
   ctx.save();
   ctx.translate(4, 6);
   drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
-  ctx.fillStyle = 'rgba(20, 48, 28, 0.28)';
+  ctx.fillStyle = theme === 'frost' ? 'rgba(15, 42, 74, 0.28)' : 'rgba(20, 48, 28, 0.28)';
   ctx.fill();
   ctx.restore();
 
   // Base wood body
   drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
   const woodGrad = ctx.createLinearGradient(0, -hh, 0, hh);
-  if (wall.kind === 'border') {
+  if (theme === 'frost') {
+    // Elegant warm alpine chalet cedar borders with frosted edge highlights
+    woodGrad.addColorStop(0, '#C9824D');
+    woodGrad.addColorStop(0.5, '#A15A2C');
+    woodGrad.addColorStop(1, '#7A3E1A');
+  } else if (wall.kind === 'border') {
     woodGrad.addColorStop(0, '#D98A4E');
     woodGrad.addColorStop(0.5, '#BA6B32');
     woodGrad.addColorStop(1, '#964E1E');
@@ -942,11 +1528,12 @@ function drawWoodenWall(
   ctx.fillStyle = woodGrad;
   ctx.fill();
 
-  // Top highlight lip
+  // Top highlight lip (delicate powdery frost dusting on Frost Falls borders)
   ctx.save();
   drawRoundedRectPath(ctx, -hw + 2, -hh + 2, wall.w - 4, wall.h - 4, Math.max(2, radius - 2));
   ctx.clip();
-  ctx.fillStyle = 'rgba(255, 232, 195, 0.28)';
+  ctx.fillStyle =
+    theme === 'frost' ? 'rgba(240, 249, 255, 0.45)' : 'rgba(255, 232, 195, 0.28)';
   ctx.fillRect(-hw, -hh, wall.w, Math.min(5, wall.h * 0.3));
 
   // Subtle wood grain lines
@@ -973,13 +1560,13 @@ function drawWoodenWall(
   // Crisp cartoon dark wood outline
   drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
   ctx.lineWidth = 2.5;
-  ctx.strokeStyle = '#522810';
+  ctx.strokeStyle = theme === 'frost' ? '#43200D' : '#522810';
   ctx.stroke();
 
   // Brass corner rivets on interior timber obstacles
   if (wall.kind === 'wood' && Math.max(wall.w, wall.h) > 60) {
-    ctx.fillStyle = '#FCD34D';
-    ctx.strokeStyle = '#78350F';
+    ctx.fillStyle = theme === 'frost' ? '#E0F2FE' : '#FCD34D';
+    ctx.strokeStyle = theme === 'frost' ? '#1E3A5F' : '#78350F';
     ctx.lineWidth = 1.2;
     const isH = wall.w >= wall.h;
     const offsets = isH
@@ -1291,6 +1878,66 @@ function drawBumper(
   ctx.translate(bumper.x, bumper.y);
   ctx.scale(scale, scale);
 
+  if (bumper.style === 'snowball') {
+    // Cool winter drop shadow
+    ctx.beginPath();
+    ctx.arc(4, 6, bumper.radius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(15, 42, 74, 0.28)';
+    ctx.fill();
+
+    // Soft icy frost ring halo on impact pulse
+    if (pulse > 0.05) {
+      ctx.beginPath();
+      ctx.arc(0, 0, bumper.radius + 5 + pulse * 4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(186, 230, 253, ${(pulse * 0.5).toFixed(2)})`;
+      ctx.fill();
+    }
+
+    // Packed cartoon snowball body
+    const snowGrad = ctx.createRadialGradient(
+      -bumper.radius * 0.3,
+      -bumper.radius * 0.32,
+      bumper.radius * 0.15,
+      0,
+      0,
+      bumper.radius
+    );
+    snowGrad.addColorStop(0, '#FFFFFF');
+    snowGrad.addColorStop(0.58, '#E6F5FF');
+    snowGrad.addColorStop(1, '#93C5FD');
+    ctx.beginPath();
+    ctx.arc(0, 0, bumper.radius, 0, Math.PI * 2);
+    ctx.fillStyle = snowGrad;
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#1E3A5F';
+    ctx.stroke();
+
+    // Inner bouncy icy-blue cushion ring
+    ctx.beginPath();
+    ctx.arc(0, 0, bumper.radius * 0.66, 0, Math.PI * 2);
+    ctx.strokeStyle = '#38BDF8';
+    ctx.lineWidth = 2.6;
+    ctx.setLineDash([7, 5]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Stylized packed snow texture dimples & top specular sheen
+    ctx.fillStyle = 'rgba(147, 197, 253, 0.48)';
+    ctx.beginPath();
+    ctx.arc(bumper.radius * 0.26, bumper.radius * 0.24, bumper.radius * 0.14, 0, Math.PI * 2);
+    ctx.arc(-bumper.radius * 0.12, bumper.radius * 0.34, bumper.radius * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(-bumper.radius * 0.28, -bumper.radius * 0.3, bumper.radius * 0.26, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fill();
+
+    ctx.restore();
+    return;
+  }
+
   if (isNeon) {
     // Lightweight neon halo for bumpers on futuristic courses
     ctx.beginPath();
@@ -1338,8 +1985,10 @@ function drawBumper(
 function drawRotatingObstacle(
   ctx: CanvasRenderingContext2D,
   rotator: RotatingObstacle,
-  angle: number
+  angle: number,
+  theme: LevelDefinition['theme'] = 'resort'
 ): void {
+  const isFrost = theme === 'frost';
   ctx.save();
   ctx.translate(rotator.cx, rotator.cy);
 
@@ -1347,13 +1996,13 @@ function drawRotatingObstacle(
   ctx.save();
   ctx.beginPath();
   ctx.arc(0, 0, rotator.length / 2, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+  ctx.strokeStyle = isFrost ? 'rgba(12, 74, 110, 0.28)' : 'rgba(255, 255, 255, 0.22)';
   ctx.lineWidth = 2;
   ctx.setLineDash([8, 8]);
   ctx.stroke();
   ctx.restore();
 
-  // Draw each rotating wooden paddle blade
+  // Draw each rotating paddle blade
   for (let b = 0; b < rotator.blades; b++) {
     const bladeAngle = angle + (b * Math.PI) / rotator.blades;
     ctx.save();
@@ -1366,33 +2015,39 @@ function drawRotatingObstacle(
     ctx.save();
     ctx.translate(4, 6);
     drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
-    ctx.fillStyle = 'rgba(15, 45, 25, 0.26)';
+    ctx.fillStyle = isFrost ? 'rgba(15, 42, 74, 0.28)' : 'rgba(15, 45, 25, 0.26)';
     ctx.fill();
     ctx.restore();
 
-    // Main bright painted windmill paddle
+    // Main bright painted windmill paddle (frosty glacier-blue or warm amber wood)
     drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
     const bladeGrad = ctx.createLinearGradient(0, -hh, 0, hh);
-    bladeGrad.addColorStop(0, '#F59E0B');
-    bladeGrad.addColorStop(0.5, '#D97706');
-    bladeGrad.addColorStop(1, '#B45309');
+    if (isFrost) {
+      bladeGrad.addColorStop(0, '#7DD3FC');
+      bladeGrad.addColorStop(0.5, '#0EA5E9');
+      bladeGrad.addColorStop(1, '#0369A1');
+    } else {
+      bladeGrad.addColorStop(0, '#F59E0B');
+      bladeGrad.addColorStop(0.5, '#D97706');
+      bladeGrad.addColorStop(1, '#B45309');
+    }
     ctx.fillStyle = bladeGrad;
     ctx.fill();
 
-    // Cheerful cream stripe tips for high-visibility motion reading
+    // High-visibility stripe tips for motion reading
     ctx.save();
     drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
     ctx.clip();
-    ctx.fillStyle = '#FEF3C7';
+    ctx.fillStyle = isFrost ? '#F0F9FF' : '#FEF3C7';
     ctx.fillRect(-hw + 14, -hh, 16, rotator.thickness);
     ctx.fillRect(hw - 30, -hh, 16, rotator.thickness);
-    ctx.fillStyle = 'rgba(255,255,255,0.28)';
+    ctx.fillStyle = 'rgba(255,255,255,0.34)';
     ctx.fillRect(-hw, -hh, rotator.length, 5);
     ctx.restore();
 
     drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
     ctx.lineWidth = 2.5;
-    ctx.strokeStyle = '#522810';
+    ctx.strokeStyle = isFrost ? '#0C4A6E' : '#522810';
     ctx.stroke();
 
     ctx.restore();
@@ -1401,23 +2056,23 @@ function drawRotatingObstacle(
   // Center windmill hub cap
   ctx.beginPath();
   ctx.arc(3, 5, rotator.hubRadius, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(15, 45, 25, 0.28)';
+  ctx.fillStyle = isFrost ? 'rgba(15, 42, 74, 0.3)' : 'rgba(15, 45, 25, 0.28)';
   ctx.fill();
 
   ctx.beginPath();
   ctx.arc(0, 0, rotator.hubRadius, 0, Math.PI * 2);
-  ctx.fillStyle = '#EF4444';
+  ctx.fillStyle = isFrost ? '#0284C7' : '#EF4444';
   ctx.fill();
   ctx.lineWidth = 3;
-  ctx.strokeStyle = '#522011';
+  ctx.strokeStyle = isFrost ? '#0C4A6E' : '#522011';
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.arc(0, 0, rotator.hubRadius * 0.45, 0, Math.PI * 2);
-  ctx.fillStyle = '#FDE047';
+  ctx.arc(0, 0, rotator.hubRadius * 0.48, 0, Math.PI * 2);
+  ctx.fillStyle = isFrost ? '#E0F7FF' : '#FDE047';
   ctx.fill();
   ctx.lineWidth = 2;
-  ctx.strokeStyle = '#78350F';
+  ctx.strokeStyle = isFrost ? '#0369A1' : '#78350F';
   ctx.stroke();
 
   ctx.restore();
@@ -1445,7 +2100,7 @@ function drawAimOverlay(
 
   ctx.save();
 
-  // Draw pull-back slingshot line behind the ball
+  // Pull-back slingshot tether behind the ball
   const pullDx = aim.current.x - aim.anchor.x;
   const pullDy = aim.current.y - aim.anchor.y;
   const pullDist = Math.hypot(pullDx, pullDy);
@@ -1457,108 +2112,207 @@ function drawAimOverlay(
     ctx.beginPath();
     ctx.moveTo(bx, by);
     ctx.lineTo(px, py);
-    ctx.strokeStyle = shot.valid ? 'rgba(255, 255, 255, 0.75)' : 'rgba(255, 255, 255, 0.35)';
-    ctx.lineWidth = 4;
+    ctx.strokeStyle = shot.valid ? 'rgba(44, 24, 16, 0.42)' : 'rgba(44, 24, 16, 0.22)';
+    ctx.lineWidth = 6;
     ctx.lineCap = 'round';
-    ctx.setLineDash([6, 6]);
+    ctx.setLineDash([6, 7]);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(px, py);
+    ctx.strokeStyle = shot.valid ? 'rgba(255, 255, 255, 0.85)' : 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 3.2;
+    ctx.lineCap = 'round';
+    ctx.setLineDash([6, 7]);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Pull handle knob
+    // Pull handle knob with crisp highlight
     ctx.beginPath();
-    ctx.arc(px, py, shot.valid ? 8 : 6, 0, Math.PI * 2);
+    ctx.arc(px, py, shot.valid ? 8.5 : 6, 0, Math.PI * 2);
     ctx.fillStyle = shot.valid ? powerColor : '#94A3B8';
     ctx.fill();
     ctx.lineWidth = 2.5;
     ctx.strokeStyle = '#2C1810';
     ctx.stroke();
+    if (shot.valid) {
+      ctx.beginPath();
+      ctx.arc(px - 2.2, py - 2.2, 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+      ctx.fill();
+    }
   }
 
   if (!shot.valid) {
     // Subtle ring indicating cancel zone
     ctx.beginPath();
-    ctx.arc(bx, by, 20, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
-    ctx.lineWidth = 2;
+    ctx.arc(bx, by, 21, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.lineWidth = 2.2;
     ctx.setLineDash([4, 4]);
     ctx.stroke();
     ctx.restore();
     return;
   }
 
-  // Predicted dotted trajectory with wall/gate bounce
+  // Radial power gauge arc around the ball (fills smoothly 0 -> 100%)
+  const aimAngle = Math.atan2(shot.aimDir.y, shot.aimDir.x);
+  const gaugeRadius = sim.ball.radius + 10.5;
+  const arcSpan = Math.PI * 1.45;
+  const startAngle = aimAngle + Math.PI - arcSpan / 2;
+  const fillAngle = startAngle + arcSpan * shot.power;
+
+  // Backing track
+  ctx.beginPath();
+  ctx.arc(bx, by, gaugeRadius, startAngle, startAngle + arcSpan);
+  ctx.strokeStyle = 'rgba(24, 16, 12, 0.55)';
+  ctx.lineWidth = 6.5;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Active power arc
+  ctx.beginPath();
+  ctx.arc(bx, by, gaugeRadius, startAngle, fillAngle);
+  ctx.strokeStyle = powerColor;
+  ctx.lineWidth = 3.8;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Predicted dotted trajectory with wall/gate bounce & clear bounce marker
   const pathPoints = predictAimPath(
     sim.ball,
     shot.vx,
     shot.vy,
     level,
     sim.rotatorAngles,
-    28,
+    30,
     sim.elapsedTime
   );
+
+  // Subtle dashed guide thread connecting predicted dots
+  if (pathPoints.length > 2) {
+    ctx.beginPath();
+    ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+    for (let i = 1; i < pathPoints.length; i++) {
+      ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+    }
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  let bounceIndex = -1;
+  for (let i = 1; i < pathPoints.length - 1; i++) {
+    const d1x = pathPoints[i].x - pathPoints[i - 1].x;
+    const d1y = pathPoints[i].y - pathPoints[i - 1].y;
+    const d2x = pathPoints[i + 1].x - pathPoints[i].x;
+    const d2y = pathPoints[i + 1].y - pathPoints[i].y;
+    const l1 = Math.hypot(d1x, d1y);
+    const l2 = Math.hypot(d2x, d2y);
+    if (l1 > 0.5 && l2 > 0.5) {
+      const dot = (d1x * d2x + d1y * d2y) / (l1 * l2);
+      if (dot < 0.72) {
+        bounceIndex = i;
+        break;
+      }
+    }
+  }
+
   for (let i = 1; i < pathPoints.length; i++) {
     const t = i / pathPoints.length;
     const pt = pathPoints[i];
-    const dotRadius = Math.max(2.6, 5.4 * (1 - t * 0.55));
+    const dotRadius = Math.max(2.4, 5.6 * (1 - t * 0.54));
+
+    if (i === bounceIndex) {
+      // Crisp bounce reflection ring marker
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 7.5, 0, Math.PI * 2);
+      ctx.strokeStyle = '#2C1810';
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+      ctx.strokeStyle = powerColor;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
     ctx.beginPath();
     ctx.arc(pt.x, pt.y, dotRadius, 0, Math.PI * 2);
-    ctx.fillStyle = i === 1 ? powerColor : `rgba(255, 255, 255, ${0.95 - t * 0.65})`;
+    ctx.fillStyle =
+      i === 1 || i === bounceIndex
+        ? powerColor
+        : `rgba(255, 255, 255, ${(0.96 - t * 0.62).toFixed(2)})`;
     ctx.fill();
-    ctx.lineWidth = 1.5;
-    ctx.strokeStyle = `rgba(30, 41, 59, ${0.55 - t * 0.35})`;
+    ctx.lineWidth = 1.7;
+    ctx.strokeStyle = `rgba(30, 20, 14, ${(0.68 - t * 0.42).toFixed(2)})`;
     ctx.stroke();
   }
 
-  // Power gauge arc around the ball
-  const angle = Math.atan2(shot.aimDir.y, shot.aimDir.x);
-  const arrowLen = 28 + shot.power * 52;
+  // Aiming direction arrow with dual-stroke arcade styling
+  const arrowStart = 17;
+  const arrowLen = 30 + shot.power * 54;
+  const sx = bx + shot.aimDir.x * arrowStart;
+  const sy = by + shot.aimDir.y * arrowStart;
   const tipX = bx + shot.aimDir.x * arrowLen;
   const tipY = by + shot.aimDir.y * arrowLen;
 
   ctx.beginPath();
-  ctx.moveTo(bx + shot.aimDir.x * 16, by + shot.aimDir.y * 16);
+  ctx.moveTo(sx, sy);
   ctx.lineTo(tipX, tipY);
   ctx.strokeStyle = '#2C1810';
-  ctx.lineWidth = 8;
+  ctx.lineWidth = 8.5;
   ctx.lineCap = 'round';
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.moveTo(bx + shot.aimDir.x * 16, by + shot.aimDir.y * 16);
+  ctx.moveTo(sx, sy);
   ctx.lineTo(tipX, tipY);
   ctx.strokeStyle = powerColor;
-  ctx.lineWidth = 4.5;
+  ctx.lineWidth = 4.6;
   ctx.lineCap = 'round';
   ctx.stroke();
 
-  // Arrowhead chevron
+  // Subtle white center highlight stripe along arrow shaft
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(tipX, tipY);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)';
+  ctx.lineWidth = 1.4;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Crisp arrowhead chevron
   ctx.save();
   ctx.translate(tipX, tipY);
-  ctx.rotate(angle);
+  ctx.rotate(aimAngle);
   ctx.beginPath();
-  ctx.moveTo(7, 0);
-  ctx.lineTo(-7, -7);
+  ctx.moveTo(8.5, 0);
+  ctx.lineTo(-7.5, -7.8);
   ctx.lineTo(-4, 0);
-  ctx.lineTo(-7, 7);
+  ctx.lineTo(-7.5, 7.8);
   ctx.closePath();
   ctx.fillStyle = powerColor;
   ctx.fill();
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.2;
+  ctx.lineJoin = 'round';
   ctx.strokeStyle = '#2C1810';
   ctx.stroke();
   ctx.restore();
 
-  // Compact power percentage callout near the pull knob (clamped inside world bounds)
+  // Clean power percentage indicator positioned smartly opposite the aim direction
   const pct = Math.round(shot.power * 100);
-  ctx.font = '700 13px "Plus Jakarta Sans", sans-serif';
+  ctx.font = '800 13px "Plus Jakarta Sans", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const labelX = Math.max(36, Math.min(level.worldWidth - 36, bx - shot.aimDir.x * 36));
-  const labelY = Math.max(24, Math.min(level.worldHeight - 24, by - shot.aimDir.y * 36 - 18));
-  ctx.lineWidth = 4;
+  const labelX = Math.max(40, Math.min(level.worldWidth - 40, bx - shot.aimDir.x * 40));
+  const labelY = Math.max(24, Math.min(level.worldHeight - 24, by - shot.aimDir.y * 40 - 16));
+  ctx.lineWidth = 4.5;
+  ctx.lineJoin = 'round';
   ctx.strokeStyle = '#2C1810';
   ctx.strokeText(`${pct}%`, labelX, labelY);
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = powerColor;
   ctx.fillText(`${pct}%`, labelX, labelY);
 
   ctx.restore();
@@ -1633,17 +2387,47 @@ function drawBall(ctx: CanvasRenderingContext2D, sim: SimState, time: number): v
   ctx.restore();
 }
 
-function drawParticlesAndTrail(ctx: CanvasRenderingContext2D, pool: ParticlePool): void {
-  // Ball trail dots
-  for (let i = 0; i < pool.trail.length; i++) {
+function drawParticlesAndTrail(
+  ctx: CanvasRenderingContext2D,
+  pool: ParticlePool,
+  theme: LevelDefinition['theme'] = 'resort'
+): void {
+  const trailRgb =
+    theme === 'neon'
+      ? '125, 211, 252'
+      : theme === 'frost'
+      ? '224, 247, 255'
+      : '255, 255, 255';
+
+  // Smooth tapered fading ribbon trail behind the rolling ball
+  ctx.save();
+  ctx.lineCap = 'round';
+  for (let i = 0; i < pool.trail.length - 1; i++) {
     const pt = pool.trail[i];
-    if (pt.alpha <= 0.01) continue;
+    const next = pool.trail[i + 1];
+    if (pt.alpha <= 0.015 || next.alpha <= 0.015) continue;
+    // Skip ribbon segment across portal teleports
+    if (Math.hypot(pt.x - next.x, pt.y - next.y) > 90) continue;
     const t = 1 - i / pool.trail.length;
     ctx.beginPath();
-    ctx.arc(pt.x, pt.y, 3 + t * 5, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255, 255, 255, ${pt.alpha * 0.45 * t})`;
+    ctx.moveTo(pt.x, pt.y);
+    ctx.lineTo(next.x, next.y);
+    ctx.strokeStyle = `rgba(${trailRgb}, ${(pt.alpha * 0.44 * t).toFixed(3)})`;
+    ctx.lineWidth = Math.max(1.8, pt.radius * 1.45 * t);
+    ctx.stroke();
+  }
+
+  // Subtle fading trail core dots
+  for (let i = 0; i < pool.trail.length; i++) {
+    const pt = pool.trail[i];
+    if (pt.alpha <= 0.02) continue;
+    const t = 1 - i / pool.trail.length;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, Math.max(1.5, pt.radius * 0.58 * t), 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 255, ${(pt.alpha * 0.34 * t).toFixed(3)})`;
     ctx.fill();
   }
+  ctx.restore();
 
   // Particles
   for (let i = 0; i < pool.items.length; i++) {
@@ -1657,13 +2441,26 @@ function drawParticlesAndTrail(ctx: CanvasRenderingContext2D, pool: ParticlePool
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       ctx.strokeStyle = p.color;
-      ctx.lineWidth = 3.5 * alpha;
+      ctx.lineWidth = Math.max(1.2, 3.6 * alpha);
       ctx.stroke();
     } else if (p.shape === 'confetti') {
       ctx.translate(p.x, p.y);
       ctx.rotate(p.rotation);
       ctx.fillStyle = p.color;
       ctx.fillRect(-p.size / 2, -p.size * 0.32, p.size, p.size * 0.64);
+    } else if (p.shape === 'sparkle') {
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation * 0.4);
+      const r = p.size * (0.45 + alpha * 0.65);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.moveTo(0, -r);
+      ctx.quadraticCurveTo(0, 0, r, 0);
+      ctx.quadraticCurveTo(0, 0, 0, r);
+      ctx.quadraticCurveTo(0, 0, -r, 0);
+      ctx.quadraticCurveTo(0, 0, 0, -r);
+      ctx.closePath();
+      ctx.fill();
     } else {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size * (0.4 + alpha * 0.6), 0, Math.PI * 2);
@@ -1690,6 +2487,10 @@ function drawStaticCourseLayer(
     grad.addColorStop(0, '#0B061E');
     grad.addColorStop(0.5, '#150A35');
     grad.addColorStop(1, '#0D0624');
+  } else if (theme === 'frost') {
+    grad.addColorStop(0, '#2F6DA3');
+    grad.addColorStop(0.5, '#205688');
+    grad.addColorStop(1, '#16406B');
   } else if (theme === 'garden') {
     grad.addColorStop(0, '#54C068');
     grad.addColorStop(0.55, '#3FA656');
@@ -1719,6 +2520,22 @@ function drawStaticCourseLayer(
     for (let y = 0; y < transform.height; y += 48) {
       ctx.moveTo(0, y);
       ctx.lineTo(transform.width, y);
+    }
+    ctx.stroke();
+  } else if (theme === 'frost') {
+    // Crisp winter alpine wind-swept glacier ribbons
+    ctx.strokeStyle = 'rgba(224, 242, 254, 0.14)';
+    ctx.lineWidth = 2.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    const spacing = 84;
+    for (let y = 24; y < transform.height + 20; y += spacing) {
+      const rowShift = (Math.floor(y / spacing) % 2) * 86;
+      for (let x = -20; x < transform.width + 40; x += 172) {
+        const sx = x + rowShift;
+        ctx.moveTo(sx, y);
+        ctx.quadraticCurveTo(sx + 32, y - 6, sx + 64, y - 2);
+      }
     }
     ctx.stroke();
   } else {
@@ -1751,10 +2568,10 @@ function drawStaticCourseLayer(
   ctx.translate(transform.offsetX, transform.offsetY);
   ctx.scale(transform.scale, transform.scale);
 
-  // Courtyard / beach island / neon cabinet deck
+  // Courtyard / beach island / neon cabinet deck / snowbank resort plateau
   drawGardenIsland(ctx, level, 0);
 
-  // Surrounding props (foliage, palms, umbrellas, flowers, stones)
+  // Surrounding props (foliage, palms, umbrellas, flowers, stones, winter pines, snowmen, crystals)
   for (const prop of level.decor) {
     drawDecorProp(ctx, prop, 0);
   }
@@ -1762,10 +2579,13 @@ function drawStaticCourseLayer(
   // Mowed putting turf & tee mat
   drawTurf(ctx, level);
 
+  // Glossy ice sheets on Frost Falls courses (clipped neatly inside turf polygons)
+  drawIceHazards(ctx, level);
+
   // Sand trap patches on turf
   drawSandHazards(ctx, level);
 
-  // Wooden or neon outer borders & interior walls
+  // Wooden, frosted stone, crystal, or neon outer borders & interior walls
   for (const wall of level.walls) {
     drawWoodenWall(ctx, wall, level.theme);
   }
@@ -1802,6 +2622,8 @@ export function renderFrame(
       ctx.fillStyle =
         level.theme === 'neon'
           ? '#0D0624'
+          : level.theme === 'frost'
+          ? '#16406B'
           : level.theme === 'garden'
           ? '#2E8B44'
           : '#0E859A';
@@ -1828,6 +2650,7 @@ export function renderFrame(
       drawDecorProp(ctx, prop, sim.elapsedTime);
     }
     drawTurf(ctx, level);
+    drawIceHazards(ctx, level);
     drawSandHazards(ctx, level);
     for (const wall of level.walls) {
       drawWoodenWall(ctx, wall, level.theme);
@@ -1838,6 +2661,11 @@ export function renderFrame(
   ctx.save();
   ctx.translate(transform.offsetX + shakeX, transform.offsetY + shakeY);
   ctx.scale(transform.scale, transform.scale);
+
+  // Animated icy sparkles on Frost Falls glacier sheets
+  if (level.theme === 'frost') {
+    drawIceSparkles(ctx, level, sim.elapsedTime);
+  }
 
   // Shimmering water hazards
   drawWaterHazards(ctx, level, sim.elapsedTime);
@@ -1851,15 +2679,15 @@ export function renderFrame(
   // Cup & fluttering flag
   drawHoleAndFlag(ctx, level, sim.ball.x, sim.ball.y, sim.elapsedTime);
 
-  // Bouncy bumpers
+  // Bouncy bumpers (classic, neon, or snowball)
   const isNeon = level.theme === 'neon';
   for (const bumper of level.bumpers) {
     drawBumper(ctx, bumper, sim.bumperPulse[bumper.id] || 0, isNeon);
   }
 
-  // Rotating windmill blades
+  // Rotating windmill / frost-spinner blades
   for (let i = 0; i < level.rotators.length; i++) {
-    drawRotatingObstacle(ctx, level.rotators[i], sim.rotatorAngles[i]);
+    drawRotatingObstacle(ctx, level.rotators[i], sim.rotatorAngles[i], level.theme);
   }
 
   // Periodically opening & closing neon gates
@@ -1869,13 +2697,16 @@ export function renderFrame(
   drawAimOverlay(ctx, sim, level, aim);
 
   // Speed trail & particles
-  drawParticlesAndTrail(ctx, particles);
+  drawParticlesAndTrail(ctx, particles, level.theme);
 
   // Golf ball
   drawBall(ctx, sim, sim.elapsedTime);
 
-  // Water penalty floating callout
+  // Water penalty / Birdie / Eagle / Hole-in-One floating callout
   drawSplashCallout(ctx, splashCallout);
 
   ctx.restore();
+
+  // Subtle lightweight ambient theme animations around viewport (snow, sun motes, beach shimmer, neon beacons)
+  drawThemeAmbience(ctx, transform.width, transform.height, level.theme, sim.elapsedTime);
 }

@@ -1,10 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { golfAudio } from '../game/audio';
+import { CelebrationTier, golfAudio } from '../game/audio';
 import { LEVELS } from '../game/levels';
 import { ParticlePool } from '../game/particles';
 import {
   computeShotFromDrag,
   createInitialSimState,
+  getScoreLabel,
   launchBall,
   stepSimulation,
 } from '../game/physics';
@@ -26,16 +27,28 @@ export interface GolfCanvasHandle {
 interface GolfCanvasProps {
   levelIndex: number;
   phase: GamePhase;
+  strokes: number;
   onStroke: () => void;
   onWaterPenalty: () => void;
   onHoleSunk: () => void;
 }
 
+function resolveCelebrationTier(strokes: number, par: number): CelebrationTier {
+  const safe = Math.max(1, strokes);
+  if (safe === 1) return 'hole_in_one';
+  const diff = safe - par;
+  if (diff <= -2) return 'eagle';
+  if (diff === -1) return 'birdie';
+  if (diff === 0) return 'par';
+  return 'standard';
+}
+
 export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
-  function GolfCanvas({ levelIndex, phase, onStroke, onWaterPenalty, onHoleSunk }, ref) {
+  function GolfCanvas({ levelIndex, phase, strokes, onStroke, onWaterPenalty, onHoleSunk }, ref) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const levelIndexRef = useRef(levelIndex);
     const phaseRef = useRef<GamePhase>(phase);
+    const strokesRef = useRef(strokes);
     const onStrokeRef = useRef(onStroke);
     const onWaterPenaltyRef = useRef(onWaterPenalty);
     const onHoleSunkRef = useRef(onHoleSunk);
@@ -64,6 +77,7 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
     onWaterPenaltyRef.current = onWaterPenalty;
     onHoleSunkRef.current = onHoleSunk;
     phaseRef.current = phase;
+    strokesRef.current = strokes;
 
     const syncCanvasDataAttributes = () => {
       const canvas = canvasRef.current;
@@ -162,12 +176,23 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
         activePointerIdRef.current = null;
       };
 
+      // Prevent accidental mobile Safari/Chrome scrolling or rubber-banding when dragging on canvas
+      const preventTouchScroll = (e: TouchEvent) => {
+        if (phaseRef.current === 'playing') {
+          e.preventDefault();
+        }
+      };
+
       const handlePointerDown = (e: PointerEvent) => {
         if (phaseRef.current !== 'playing') return;
         if (e.button !== 0 && e.pointerType === 'mouse') return;
         const sim = simRef.current;
         if (sim.ball.isMoving || sim.ball.holed) return;
         if (activePointerIdRef.current !== null) return;
+
+        if (e.pointerType !== 'mouse') {
+          e.preventDefault();
+        }
 
         const rect = canvas.getBoundingClientRect();
         const worldPt = screenToWorld(e.clientX, e.clientY, rect, transformRef.current);
@@ -217,6 +242,7 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
 
         if (phaseRef.current !== 'playing') return;
         const sim = simRef.current;
+        const level = LEVELS[levelIndexRef.current];
         if (shot.valid && !sim.ball.isMoving && !sim.ball.holed) {
           launchBall(sim.ball, shot.vx, shot.vy);
           golfAudio.playPutt(shot.power);
@@ -225,14 +251,17 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
             sim.ball.y,
             shot.aimDir.x,
             shot.aimDir.y,
-            shot.power
+            shot.power,
+            level.theme
           );
+          strokesRef.current += 1;
           syncCanvasDataAttributes();
           onStrokeRef.current();
         }
       };
 
       canvas.addEventListener('pointerdown', handlePointerDown);
+      canvas.addEventListener('touchmove', preventTouchScroll, { passive: false });
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
       window.addEventListener('pointercancel', cancelPointer);
@@ -241,6 +270,7 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
       let rafId = 0;
       let lastTime = performance.now();
       let wasMoving = false;
+      let staticOverlayRenderedKey = '';
 
       const loop = (now: number) => {
         const rawDt = (now - lastTime) / 1000;
@@ -251,21 +281,58 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
         const sim = simRef.current;
         const currentPhase = phaseRef.current;
 
+        if (currentPhase === 'paused' || currentPhase === 'course_select') {
+          const overlayKey = `${currentPhase}:${level.id}:${Math.round(transformRef.current.width)}:${Math.round(transformRef.current.height)}`;
+          if (staticOverlayRenderedKey !== overlayKey) {
+            staticOverlayRenderedKey = overlayKey;
+            renderFrame(
+              ctx,
+              transformRef.current,
+              level,
+              sim,
+              particlesRef.current,
+              aimRef.current,
+              0,
+              0,
+              currentDpr,
+              staticCache,
+              splashCalloutRef.current
+            );
+          }
+          rafId = window.requestAnimationFrame(loop);
+          return;
+        }
+        staticOverlayRenderedKey = '';
+
         if (currentPhase === 'playing' || currentPhase === 'level_clear' || currentPhase === 'victory') {
           const events = stepSimulation(sim, level, dt);
           for (const ev of events) {
             if (ev.type === 'wall') {
               golfAudio.playWoodBounce(ev.impactSpeed);
-              particlesRef.current.emitWallSpark(ev.x, ev.y, ev.nx, ev.ny, ev.impactSpeed);
-              traumaRef.current = Math.min(1, traumaRef.current + (ev.impactSpeed / 900) * 0.35);
+              particlesRef.current.emitWallSpark(
+                ev.x,
+                ev.y,
+                ev.nx,
+                ev.ny,
+                ev.impactSpeed,
+                level.theme
+              );
+              traumaRef.current = Math.min(1, traumaRef.current + (ev.impactSpeed / 900) * 0.34);
             } else if (ev.type === 'bumper') {
               golfAudio.playBumperBounce(ev.impactSpeed);
               const bObj = level.bumpers.find((b) => b.id === ev.id);
               particlesRef.current.emitBumperBurst(ev.x, ev.y, bObj?.color ?? '#FF6B4A');
-              traumaRef.current = Math.min(1, traumaRef.current + 0.35);
+              traumaRef.current = Math.min(1, traumaRef.current + 0.36);
             } else if (ev.type === 'rotator') {
               golfAudio.playWoodBounce(ev.impactSpeed * 1.15);
-              particlesRef.current.emitWallSpark(ev.x, ev.y, ev.nx, ev.ny, ev.impactSpeed);
+              particlesRef.current.emitWallSpark(
+                ev.x,
+                ev.y,
+                ev.nx,
+                ev.ny,
+                ev.impactSpeed,
+                level.theme
+              );
               traumaRef.current = Math.min(1, traumaRef.current + 0.32);
             } else if (ev.type === 'gate') {
               golfAudio.playGateBounce(ev.impactSpeed);
@@ -288,13 +355,40 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
               golfAudio.playWaterSplash();
               particlesRef.current.emitWaterSplash(ev.x, ev.y);
               traumaRef.current = Math.min(1, traumaRef.current + 0.3);
-              splashCalloutRef.current = { x: ev.x, y: ev.y, life: 1.15, maxLife: 1.15 };
+              splashCalloutRef.current = {
+                x: ev.x,
+                y: ev.y,
+                life: 1.15,
+                maxLife: 1.15,
+                text: 'SPLASH! +1',
+                fillColor: '#E0F2FE',
+                strokeColor: '#0B4F6C',
+              };
+              strokesRef.current += 1;
               syncCanvasDataAttributes();
               onWaterPenaltyRef.current();
             } else if (ev.type === 'hole_sink') {
-              golfAudio.playCupSink();
-              particlesRef.current.emitHoleCelebration(ev.x, ev.y);
-              traumaRef.current = Math.min(1, traumaRef.current + 0.25);
+              const currentStrokes = Math.max(1, strokesRef.current);
+              const tier = resolveCelebrationTier(currentStrokes, level.par);
+              const scoreInfo = getScoreLabel(currentStrokes, level.par);
+              golfAudio.playCupSink(tier);
+              particlesRef.current.emitHoleCelebration(ev.x, ev.y, tier);
+              traumaRef.current = Math.min(
+                1,
+                traumaRef.current + (tier === 'hole_in_one' ? 0.42 : 0.26)
+              );
+              if (tier === 'hole_in_one' || tier === 'eagle' || tier === 'birdie') {
+                splashCalloutRef.current = {
+                  x: ev.x,
+                  y: ev.y - 6,
+                  life: 1.25,
+                  maxLife: 1.25,
+                  text: scoreInfo.title,
+                  fillColor: tier === 'birdie' ? '#A7F3D0' : '#FDE047',
+                  strokeColor: '#3B1D0E',
+                  scale: tier === 'hole_in_one' ? 1.32 : 1.18,
+                };
+              }
               syncCanvasDataAttributes();
             }
           }
@@ -308,7 +402,7 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
 
           if (sim.ball.holed && !sinkNotifiedRef.current && currentPhase === 'playing') {
             sinkDelayTimerRef.current += dt;
-            if (sinkDelayTimerRef.current >= 0.52) {
+            if (sinkDelayTimerRef.current >= 0.62) {
               sinkNotifiedRef.current = true;
               onHoleSunkRef.current();
             }
@@ -322,7 +416,7 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
           }
           wasMoving = sim.ball.isMoving;
         } else if (currentPhase === 'title') {
-          // Keep background live and breathing on Title screen (water ripples, fluttering flag, rotating blades)
+          // Keep background live and breathing on Title screen
           sim.elapsedTime += dt;
           for (let i = 0; i < level.rotators.length; i++) {
             sim.rotatorAngles[i] += level.rotators[i].angularVelocity * dt;
@@ -358,6 +452,7 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
         window.cancelAnimationFrame(rafId);
         resizeObserver.disconnect();
         canvas.removeEventListener('pointerdown', handlePointerDown);
+        canvas.removeEventListener('touchmove', preventTouchScroll);
         window.removeEventListener('pointermove', handlePointerMove);
         window.removeEventListener('pointerup', handlePointerUp);
         window.removeEventListener('pointercancel', cancelPointer);

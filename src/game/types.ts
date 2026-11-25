@@ -16,7 +16,7 @@ export interface RectWall {
   /** Rotation in radians */
   angle: number;
   /** Visual style */
-  kind?: 'border' | 'wood' | 'bumper-wall';
+  kind?: 'border' | 'wood' | 'bumper-wall' | 'frost-stone' | 'crystal';
 }
 
 export interface Bumper {
@@ -27,6 +27,7 @@ export interface Bumper {
   restitution: number;
   color: string;
   accentColor: string;
+  style?: 'classic' | 'snowball';
 }
 
 export interface RotatingObstacle {
@@ -55,7 +56,7 @@ export interface TurfZone {
 }
 
 export interface DecorProp {
-  kind: 'bush' | 'flower' | 'palm' | 'stone' | 'umbrella';
+  kind: 'bush' | 'flower' | 'palm' | 'stone' | 'umbrella' | 'snow-pine' | 'crystal' | 'snowman' | 'frost-rock';
   x: number;
   y: number;
   scale: number;
@@ -65,7 +66,7 @@ export interface DecorProp {
 
 export interface SurfaceZone {
   id: string;
-  kind: 'sand' | 'water';
+  kind: 'sand' | 'water' | 'ice';
   shape: 'rect' | 'ellipse';
   /** Center X */
   x: number;
@@ -77,6 +78,8 @@ export interface SurfaceZone {
   h: number;
   /** Optional corner radius for rounded rect */
   radius?: number;
+  /** Optional rotation in radians */
+  angle?: number;
 }
 
 export interface MovingGate {
@@ -125,7 +128,7 @@ export interface ForceZone {
   strength: number;
 }
 
-export type LevelTheme = 'resort' | 'garden' | 'beach' | 'neon';
+export type LevelTheme = 'resort' | 'garden' | 'beach' | 'neon' | 'frost';
 
 export interface LevelDefinition {
   id: number;
@@ -199,7 +202,7 @@ export interface SimState {
   bumperPulse: Record<string, number>;
 }
 
-export type GamePhase = 'title' | 'playing' | 'paused' | 'level_clear' | 'victory';
+export type GamePhase = 'title' | 'course_select' | 'playing' | 'paused' | 'level_clear' | 'victory';
 
 export interface ScoreLabelInfo {
   title: string;

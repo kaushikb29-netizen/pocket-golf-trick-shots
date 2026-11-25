@@ -1,4 +1,4 @@
-import { LevelDefinition, RectWall } from './types';
+import { LevelDefinition, RectWall, Vec2 } from './types';
 
 export const WORLD_WIDTH = 900;
 export const WORLD_HEIGHT = 540;
@@ -54,6 +54,59 @@ function makeBoxBorders(
       kind: 'border',
     },
   ];
+}
+
+/**
+ * Generate watertight outer wooden border walls tightly hugging any clockwise polygon.
+ * Convex corners extend outward to seal joints; concave corners stop flush to prevent inward protrusion.
+ */
+function makePolygonBorders(points: Vec2[], prefix: string): RectWall[] {
+  const n = points.length;
+  const walls: RectWall[] = [];
+
+  for (let i = 0; i < n; i++) {
+    const pPrev = points[(i - 1 + n) % n];
+    const p0 = points[i];
+    const p1 = points[(i + 1) % n];
+    const pNext = points[(i + 2) % n];
+
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) continue;
+
+    const ux = dx / len;
+    const uy = dy / len;
+    // Outward normal for clockwise polygon in Y-down screen coordinates
+    const nx = uy;
+    const ny = -ux;
+
+    const prevDx = p0.x - pPrev.x;
+    const prevDy = p0.y - pPrev.y;
+    const nextDx = pNext.x - p1.x;
+    const nextDy = pNext.y - p1.y;
+
+    const crossStart = prevDx * dy - prevDy * dx;
+    const crossEnd = dx * nextDy - dy * nextDx;
+
+    const extStart = crossStart > 0 ? BORDER_T * 0.56 : 0;
+    const extEnd = crossEnd > 0 ? BORDER_T * 0.56 : 0;
+
+    const cx = (p0.x + p1.x) / 2 + ux * ((extEnd - extStart) / 2) + nx * (BORDER_T / 2);
+    const cy = (p0.y + p1.y) / 2 + uy * ((extEnd - extStart) / 2) + ny * (BORDER_T / 2);
+
+    walls.push({
+      id: `${prefix}-poly-${i}`,
+      x: cx,
+      y: cy,
+      w: len + extStart + extEnd,
+      h: BORDER_T,
+      angle: Math.atan2(dy, dx),
+      kind: 'border',
+    });
+  }
+
+  return walls;
 }
 
 export const LEVELS: LevelDefinition[] = [
@@ -1426,5 +1479,676 @@ export const LEVELS: LevelDefinition[] = [
     ],
     hazards: [],
     decor: [],
+  },
+
+  // ===========================================================================
+  // LEVEL 13: Frozen Straightaway (Frost Falls, Par 3)
+  // ===========================================================================
+  {
+    id: 13,
+    name: 'Frozen Straightaway',
+    subtitle: 'Glide across slippery glacier ice around the snowy bend',
+    par: 3,
+    theme: 'frost',
+    worldWidth: WORLD_WIDTH,
+    worldHeight: WORLD_HEIGHT,
+    tee: { x: 162, y: 332 },
+    hole: { x: 734, y: 212 },
+    holeRadius: HOLE_RADIUS,
+    turfPolygons: [
+      {
+        points: [
+          { x: 95, y: 250 },
+          { x: 365, y: 250 },
+          { x: 475, y: 130 },
+          { x: 805, y: 130 },
+          { x: 805, y: 295 },
+          { x: 535, y: 295 },
+          { x: 425, y: 415 },
+          { x: 95, y: 415 },
+        ],
+      },
+    ],
+    walls: [
+      ...makePolygonBorders(
+        [
+          { x: 95, y: 250 },
+          { x: 365, y: 250 },
+          { x: 475, y: 130 },
+          { x: 805, y: 130 },
+          { x: 805, y: 295 },
+          { x: 535, y: 295 },
+          { x: 425, y: 415 },
+          { x: 95, y: 415 },
+        ],
+        'l13'
+      ),
+      // Frosted stone angled guide deflectors along the winding bend
+      {
+        id: 'l13-stone-low',
+        x: 388,
+        y: 386,
+        w: 72,
+        h: 18,
+        angle: -0.45,
+        kind: 'frost-stone',
+      },
+      {
+        id: 'l13-stone-high',
+        x: 512,
+        y: 158,
+        w: 72,
+        h: 18,
+        angle: -0.45,
+        kind: 'frost-stone',
+      },
+      // Friendly wooden corner banks behind the cup
+      {
+        id: 'l13-angle-tr',
+        x: 780,
+        y: 155,
+        w: 64,
+        h: 16,
+        angle: Math.PI / 4,
+        kind: 'wood',
+      },
+      {
+        id: 'l13-angle-br',
+        x: 780,
+        y: 270,
+        w: 64,
+        h: 16,
+        angle: -Math.PI / 4,
+        kind: 'wood',
+      },
+    ],
+    bumpers: [],
+    rotators: [],
+    hazards: [
+      // Three cleanly spaced glistening ice sheets introducing smooth low-friction glide
+      {
+        id: 'l13-ice-1',
+        kind: 'ice',
+        shape: 'rect',
+        x: 294,
+        y: 332,
+        w: 120,
+        h: 112,
+        radius: 22,
+      },
+      {
+        id: 'l13-ice-2',
+        kind: 'ice',
+        shape: 'rect',
+        x: 450,
+        y: 272,
+        w: 132,
+        h: 88,
+        radius: 22,
+        angle: -0.82,
+      },
+      {
+        id: 'l13-ice-3',
+        kind: 'ice',
+        shape: 'rect',
+        x: 604,
+        y: 212,
+        w: 116,
+        h: 112,
+        radius: 22,
+      },
+    ],
+    decor: [
+      { kind: 'snow-pine', x: 108, y: 122, scale: 1.1 },
+      { kind: 'snow-pine', x: 238, y: 138, scale: 0.92 },
+      { kind: 'snowman', x: 324, y: 154, scale: 1.0 },
+      { kind: 'crystal', x: 176, y: 184, scale: 1.0 },
+      { kind: 'crystal', x: 645, y: 378, scale: 1.1 },
+      { kind: 'snow-pine', x: 752, y: 396, scale: 1.08 },
+      { kind: 'snow-pine', x: 562, y: 432, scale: 0.95 },
+      { kind: 'frost-rock', x: 678, y: 448, scale: 1.0 },
+      { kind: 'frost-rock', x: 452, y: 68, scale: 0.92 },
+      { kind: 'crystal', x: 842, y: 88, scale: 0.9 },
+      { kind: 'snow-pine', x: 848, y: 368, scale: 0.85 },
+      { kind: 'frost-rock', x: 150, y: 468, scale: 0.95 },
+    ],
+  },
+
+  // ===========================================================================
+  // LEVEL 14: Snowball Ricochet (Frost Falls, Par 4)
+  // ===========================================================================
+  {
+    id: 14,
+    name: 'Snowball Ricochet',
+    subtitle: 'Bank around the sweeping snow arch off giant snowball bumpers',
+    par: 4,
+    theme: 'frost',
+    worldWidth: WORLD_WIDTH,
+    worldHeight: WORLD_HEIGHT,
+    tee: { x: 188, y: 386 },
+    hole: { x: 706, y: 386 },
+    holeRadius: HOLE_RADIUS,
+    turfPolygons: [
+      {
+        points: [
+          { x: 95, y: 250 },
+          { x: 185, y: 110 },
+          { x: 360, y: 82 },
+          { x: 540, y: 82 },
+          { x: 715, y: 110 },
+          { x: 805, y: 250 },
+          { x: 805, y: 442 },
+          { x: 595, y: 442 },
+          { x: 560, y: 268 },
+          { x: 340, y: 268 },
+          { x: 305, y: 442 },
+          { x: 95, y: 442 },
+        ],
+      },
+    ],
+    walls: [
+      ...makePolygonBorders(
+        [
+          { x: 95, y: 250 },
+          { x: 185, y: 110 },
+          { x: 360, y: 82 },
+          { x: 540, y: 82 },
+          { x: 715, y: 110 },
+          { x: 805, y: 250 },
+          { x: 805, y: 442 },
+          { x: 595, y: 442 },
+          { x: 560, y: 268 },
+          { x: 340, y: 268 },
+          { x: 305, y: 442 },
+          { x: 95, y: 442 },
+        ],
+        'l14'
+      ),
+      // Angled wooden barriers crafted for calculated ricochets around the arch
+      {
+        id: 'l14-wood-tee',
+        x: 266,
+        y: 332,
+        w: 68,
+        h: 16,
+        angle: 0.56,
+        kind: 'wood',
+      },
+      {
+        id: 'l14-wood-top-l',
+        x: 346,
+        y: 120,
+        w: 76,
+        h: 16,
+        angle: -0.26,
+        kind: 'wood',
+      },
+      {
+        id: 'l14-wood-top-r',
+        x: 554,
+        y: 120,
+        w: 76,
+        h: 16,
+        angle: 0.26,
+        kind: 'wood',
+      },
+      {
+        id: 'l14-wood-br',
+        x: 766,
+        y: 404,
+        w: 76,
+        h: 16,
+        angle: -Math.PI / 4,
+        kind: 'wood',
+      },
+    ],
+    bumpers: [
+      {
+        id: 'l14-snow-1',
+        x: 254,
+        y: 196,
+        radius: 32,
+        restitution: 1.22,
+        color: '#E0F2FE',
+        accentColor: '#BAE6FD',
+        style: 'snowball',
+      },
+      {
+        id: 'l14-snow-2',
+        x: 450,
+        y: 152,
+        radius: 34,
+        restitution: 1.24,
+        color: '#E0F2FE',
+        accentColor: '#BAE6FD',
+        style: 'snowball',
+      },
+      {
+        id: 'l14-snow-3',
+        x: 646,
+        y: 196,
+        radius: 32,
+        restitution: 1.22,
+        color: '#E0F2FE',
+        accentColor: '#BAE6FD',
+        style: 'snowball',
+      },
+      {
+        id: 'l14-snow-4',
+        x: 654,
+        y: 324,
+        radius: 24,
+        restitution: 1.16,
+        color: '#E0F2FE',
+        accentColor: '#BAE6FD',
+        style: 'snowball',
+      },
+    ],
+    rotators: [],
+    hazards: [
+      // Two glossy curved-arch ice panels rewarding crisp ricochets
+      {
+        id: 'l14-ice-left',
+        kind: 'ice',
+        shape: 'rect',
+        x: 346,
+        y: 192,
+        w: 112,
+        h: 92,
+        radius: 24,
+        angle: -0.18,
+      },
+      {
+        id: 'l14-ice-right',
+        kind: 'ice',
+        shape: 'rect',
+        x: 554,
+        y: 192,
+        w: 112,
+        h: 92,
+        radius: 24,
+        angle: 0.18,
+      },
+    ],
+    decor: [
+      // Cozy winter courtyard nestled right inside the sweeping horseshoe arch
+      { kind: 'snowman', x: 450, y: 368, scale: 1.18 },
+      { kind: 'snow-pine', x: 374, y: 346, scale: 0.96 },
+      { kind: 'snow-pine', x: 526, y: 346, scale: 0.96 },
+      { kind: 'crystal', x: 390, y: 424, scale: 0.95 },
+      { kind: 'crystal', x: 512, y: 424, scale: 0.95 },
+      { kind: 'frost-rock', x: 450, y: 444, scale: 0.9 },
+      // Outer alpine resort accents
+      { kind: 'snow-pine', x: 66, y: 102, scale: 1.02 },
+      { kind: 'snow-pine', x: 834, y: 102, scale: 1.02 },
+      { kind: 'crystal', x: 64, y: 184, scale: 0.85 },
+      { kind: 'crystal', x: 836, y: 184, scale: 0.85 },
+      { kind: 'frost-rock', x: 240, y: 52, scale: 0.85 },
+      { kind: 'frost-rock', x: 660, y: 52, scale: 0.85 },
+    ],
+  },
+
+  // ===========================================================================
+  // LEVEL 15: Crystal Crossing (Frost Falls, Par 4)
+  // ===========================================================================
+  {
+    id: 15,
+    name: 'Crystal Crossing',
+    subtitle: 'Pick upper or lower routes across alternating snow and ice',
+    par: 4,
+    theme: 'frost',
+    worldWidth: WORLD_WIDTH,
+    worldHeight: WORLD_HEIGHT,
+    tee: { x: 158, y: 270 },
+    hole: { x: 742, y: 270 },
+    holeRadius: HOLE_RADIUS,
+    turfPolygons: [
+      {
+        points: [
+          { x: 155, y: 88 },
+          { x: 745, y: 88 },
+          { x: 812, y: 165 },
+          { x: 812, y: 375 },
+          { x: 745, y: 452 },
+          { x: 155, y: 452 },
+          { x: 88, y: 375 },
+          { x: 88, y: 165 },
+        ],
+      },
+    ],
+    walls: [
+      ...makePolygonBorders(
+        [
+          { x: 155, y: 88 },
+          { x: 745, y: 88 },
+          { x: 812, y: 165 },
+          { x: 812, y: 375 },
+          { x: 745, y: 452 },
+          { x: 155, y: 452 },
+          { x: 88, y: 375 },
+          { x: 88, y: 165 },
+        ],
+        'l15'
+      ),
+      // Central crystal ridge splitting the maze into distinct Upper and Lower routes
+      {
+        id: 'l15-core-crystal',
+        x: 450,
+        y: 270,
+        w: 132,
+        h: 34,
+        angle: 0,
+        kind: 'crystal',
+      },
+      // Upper route maze baffles (frosted stone + faceted diamond crystal)
+      {
+        id: 'l15-upper-stone-1',
+        x: 294,
+        y: 134,
+        w: 24,
+        h: 92,
+        angle: 0,
+        kind: 'frost-stone',
+      },
+      {
+        id: 'l15-upper-crystal',
+        x: 450,
+        y: 192,
+        w: 38,
+        h: 38,
+        angle: Math.PI / 4,
+        kind: 'crystal',
+      },
+      {
+        id: 'l15-upper-stone-2',
+        x: 598,
+        y: 132,
+        w: 24,
+        h: 88,
+        angle: 0,
+        kind: 'frost-stone',
+      },
+      // Lower route staggered maze baffles (frosted stone + faceted crystal + bank shard)
+      {
+        id: 'l15-lower-stone-1',
+        x: 342,
+        y: 404,
+        w: 24,
+        h: 92,
+        angle: 0,
+        kind: 'frost-stone',
+      },
+      {
+        id: 'l15-lower-crystal',
+        x: 528,
+        y: 332,
+        w: 38,
+        h: 38,
+        angle: Math.PI / 4,
+        kind: 'crystal',
+      },
+      {
+        id: 'l15-lower-bank',
+        x: 648,
+        y: 400,
+        w: 72,
+        h: 20,
+        angle: -Math.PI / 4,
+        kind: 'crystal',
+      },
+      // Upper-left wooden bank helper
+      {
+        id: 'l15-upper-bank',
+        x: 204,
+        y: 134,
+        w: 62,
+        h: 16,
+        angle: -Math.PI / 4,
+        kind: 'wood',
+      },
+    ],
+    bumpers: [],
+    rotators: [],
+    hazards: [
+      // Alternating icy & normal snow-turf stretches along BOTH Upper and Lower routes
+      {
+        id: 'l15-ice-u1',
+        kind: 'ice',
+        shape: 'rect',
+        x: 368,
+        y: 158,
+        w: 102,
+        h: 112,
+        radius: 20,
+      },
+      {
+        id: 'l15-ice-u2',
+        kind: 'ice',
+        shape: 'rect',
+        x: 536,
+        y: 174,
+        w: 88,
+        h: 112,
+        radius: 20,
+      },
+      {
+        id: 'l15-ice-l1',
+        kind: 'ice',
+        shape: 'rect',
+        x: 266,
+        y: 356,
+        w: 102,
+        h: 110,
+        radius: 20,
+      },
+      {
+        id: 'l15-ice-l2',
+        kind: 'ice',
+        shape: 'rect',
+        x: 454,
+        y: 400,
+        w: 120,
+        h: 76,
+        radius: 20,
+      },
+    ],
+    decor: [
+      { kind: 'snow-pine', x: 64, y: 84, scale: 1.05 },
+      { kind: 'snow-pine', x: 836, y: 84, scale: 1.05 },
+      { kind: 'snow-pine', x: 64, y: 454, scale: 1.02 },
+      { kind: 'snow-pine', x: 836, y: 454, scale: 1.02 },
+      { kind: 'crystal', x: 450, y: 46, scale: 0.92 },
+      { kind: 'crystal', x: 450, y: 494, scale: 0.92 },
+      { kind: 'frost-rock', x: 260, y: 48, scale: 0.85 },
+      { kind: 'frost-rock', x: 640, y: 48, scale: 0.85 },
+      { kind: 'frost-rock', x: 260, y: 492, scale: 0.85 },
+      { kind: 'snowman', x: 648, y: 492, scale: 0.82 },
+    ],
+  },
+
+  // ===========================================================================
+  // LEVEL 16: Blizzard Finale (Frost Falls, Par 5)
+  // ===========================================================================
+  {
+    id: 16,
+    name: 'Blizzard Finale',
+    subtitle: 'Conquer ice sheets, snowball bumpers, and the frost spinner',
+    par: 5,
+    theme: 'frost',
+    worldWidth: WORLD_WIDTH,
+    worldHeight: WORLD_HEIGHT,
+    tee: { x: 146, y: 356 },
+    hole: { x: 750, y: 270 },
+    holeRadius: HOLE_RADIUS,
+    turfPolygons: [
+      {
+        points: [
+          { x: 90, y: 108 },
+          { x: 555, y: 108 },
+          { x: 625, y: 168 },
+          { x: 810, y: 168 },
+          { x: 810, y: 372 },
+          { x: 625, y: 372 },
+          { x: 555, y: 432 },
+          { x: 90, y: 432 },
+        ],
+      },
+    ],
+    walls: [
+      ...makePolygonBorders(
+        [
+          { x: 90, y: 108 },
+          { x: 555, y: 108 },
+          { x: 625, y: 168 },
+          { x: 810, y: 168 },
+          { x: 810, y: 372 },
+          { x: 625, y: 372 },
+          { x: 555, y: 432 },
+          { x: 90, y: 432 },
+        ],
+        'l16'
+      ),
+      // Entry wooden corner bank at top-left
+      {
+        id: 'l16-wood-tl',
+        x: 126,
+        y: 144,
+        w: 74,
+        h: 16,
+        angle: -Math.PI / 4,
+        kind: 'wood',
+      },
+      // Final approach frosted stone guard pillars (clean 108px central putting fairway)
+      {
+        id: 'l16-gate-top',
+        x: 656,
+        y: 192,
+        w: 22,
+        h: 48,
+        angle: 0,
+        kind: 'frost-stone',
+      },
+      {
+        id: 'l16-gate-bot',
+        x: 656,
+        y: 348,
+        w: 22,
+        h: 48,
+        angle: 0,
+        kind: 'frost-stone',
+      },
+      // Back corner wooden ricochet rails framing the finale green
+      {
+        id: 'l16-wood-tr',
+        x: 784,
+        y: 194,
+        w: 62,
+        h: 16,
+        angle: Math.PI / 4,
+        kind: 'wood',
+      },
+      {
+        id: 'l16-wood-br',
+        x: 784,
+        y: 346,
+        w: 62,
+        h: 16,
+        angle: -Math.PI / 4,
+        kind: 'wood',
+      },
+    ],
+    bumpers: [
+      {
+        id: 'l16-snow-1',
+        x: 244,
+        y: 272,
+        radius: 24,
+        restitution: 1.16,
+        color: '#E0F2FE',
+        accentColor: '#BAE6FD',
+        style: 'snowball',
+      },
+      {
+        id: 'l16-snow-2',
+        x: 326,
+        y: 174,
+        radius: 23,
+        restitution: 1.16,
+        color: '#E0F2FE',
+        accentColor: '#BAE6FD',
+        style: 'snowball',
+      },
+      {
+        id: 'l16-snow-3',
+        x: 326,
+        y: 364,
+        radius: 23,
+        restitution: 1.16,
+        color: '#E0F2FE',
+        accentColor: '#BAE6FD',
+        style: 'snowball',
+      },
+    ],
+    rotators: [
+      {
+        id: 'l16-frost-spinner',
+        cx: 474,
+        cy: 270,
+        length: 184,
+        thickness: 20,
+        blades: 1,
+        initialAngle: 0.4,
+        angularVelocity: 0.92,
+        hubRadius: 18,
+      },
+    ],
+    hazards: [
+      // Western icy glide zone around the snowball triangle
+      {
+        id: 'l16-ice-1',
+        kind: 'ice',
+        shape: 'rect',
+        x: 280,
+        y: 222,
+        w: 150,
+        h: 164,
+        radius: 26,
+      },
+      // Central blizzard rink beneath the rotating frost spinner
+      {
+        id: 'l16-ice-2',
+        kind: 'ice',
+        shape: 'rect',
+        x: 474,
+        y: 270,
+        w: 144,
+        h: 246,
+        radius: 28,
+      },
+      // Final approach ice threshold ending safely before the frosted stone pillars
+      {
+        id: 'l16-ice-3',
+        kind: 'ice',
+        shape: 'rect',
+        x: 614,
+        y: 270,
+        w: 50,
+        h: 112,
+        radius: 18,
+      },
+    ],
+    decor: [
+      { kind: 'snow-pine', x: 660, y: 88, scale: 1.08 },
+      { kind: 'snow-pine', x: 778, y: 92, scale: 1.0 },
+      { kind: 'crystal', x: 718, y: 112, scale: 0.98 },
+      { kind: 'snowman', x: 664, y: 446, scale: 1.05 },
+      { kind: 'snow-pine', x: 778, y: 444, scale: 1.06 },
+      { kind: 'crystal', x: 724, y: 432, scale: 0.95 },
+      { kind: 'snow-pine', x: 182, y: 54, scale: 0.88 },
+      { kind: 'crystal', x: 372, y: 56, scale: 0.9 },
+      { kind: 'frost-rock', x: 475, y: 56, scale: 0.88 },
+      { kind: 'frost-rock', x: 242, y: 484, scale: 0.9 },
+      { kind: 'crystal', x: 448, y: 484, scale: 0.92 },
+    ],
   },
 ];

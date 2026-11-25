@@ -148,8 +148,8 @@ test('predictAimPath generates trajectory points and scoring labels match golf r
   assert.equal(formatParDelta(10, 8), '+2 Over Par');
 });
 
-test('course sequence contains 12 holes with expected names and pars', () => {
-  assert.equal(LEVELS.length, 12);
+test('course sequence contains 16 holes with expected names and pars', () => {
+  assert.equal(LEVELS.length, 16);
   assert.deepEqual(
     LEVELS.map((l) => [l.id, l.name, l.par]),
     [
@@ -165,10 +165,14 @@ test('course sequence contains 12 holes with expected names and pars', () => {
       [10, 'Teleport Trick', 4],
       [11, 'Gravity Bump', 4],
       [12, 'Ultimate Trick Shot', 5],
+      [13, 'Frozen Straightaway', 3],
+      [14, 'Snowball Ricochet', 4],
+      [15, 'Crystal Crossing', 4],
+      [16, 'Blizzard Finale', 5],
     ]
   );
   const totalPar = LEVELS.reduce((sum, l) => sum + l.par, 0);
-  assert.equal(totalPar, 43);
+  assert.equal(totalPar, 59);
 });
 
 test('Hole 4 Zigzag Garden angled corner bumper deflects vertical shot cleanly into corridor', () => {
@@ -503,4 +507,176 @@ test('Hole 12 Ultimate Trick Shot integrates 3 bumpers, linked portals, moving g
     }
   }
   assert.equal(sank, true, 'timed shot through open gate should glide down the narrow putting section and sink');
+});
+
+test('Hole 13 Frozen Straightaway ice reduces friction, restores normal friction off ice, and allows sinking the cup', () => {
+  const level13 = LEVELS[12];
+  assert.equal(level13.theme, 'frost');
+  assert.equal(level13.par, 3);
+
+  // Compare identical moderate shot on normal ground (Level 1) vs across ice (Level 13)
+  const level1 = LEVELS[0];
+  const simNormal = createInitialSimState(level1);
+  launchBall(simNormal.ball, 210, 0);
+
+  const simIce = createInitialSimState(level13);
+  simIce.ball.x = 248; // directly entering l13-ice-1
+  simIce.ball.y = 332;
+  launchBall(simIce.ball, 210, 0);
+
+  for (let i = 0; i < 120; i++) {
+    stepSimulation(simNormal, level1, 1 / 60);
+    stepSimulation(simIce, level13, 1 / 60);
+  }
+
+  const normalDist = simNormal.ball.x - level1.tee.x;
+  const iceDist = simIce.ball.x - 248;
+  assert.ok(
+    iceDist > normalDist * 1.25,
+    `ball on ice should glide farther than normal ground (iceDist=${iceDist.toFixed(1)}, normalDist=${normalDist.toFixed(1)})`
+  );
+
+  // Verify ball settles naturally and sinks into Hole 13 cup on final approach
+  const simPutt = createInitialSimState(level13);
+  simPutt.ball.x = 620;
+  simPutt.ball.y = 212;
+  launchBall(simPutt.ball, 210, 0);
+  let sank = false;
+  for (let i = 0; i < 240; i++) {
+    const events = stepSimulation(simPutt, level13, 1 / 60);
+    if (events.some((e) => e.type === 'hole_sink')) {
+      sank = true;
+      break;
+    }
+  }
+  assert.equal(sank, true, 'ball leaving upper ice sheet onto normal green should slow smoothly and sink into Hole 13');
+});
+
+test('Hole 14 Snowball Ricochet rebounds off large snowball bumpers and sinks on right arch leg', () => {
+  const level14 = LEVELS[13];
+  assert.equal(level14.theme, 'frost');
+  assert.equal(level14.par, 4);
+  assert.ok(level14.bumpers.length >= 4, 'Hole 14 should include multiple large snowball bumpers');
+  assert.equal(level14.bumpers[0].style, 'snowball');
+
+  // Aim diagonally from tee into left snowball bumper l14-snow-1 at (254, 196)
+  const simBumper = createInitialSimState(level14);
+  launchBall(simBumper.ball, 200, -560);
+  let hitSnowball = false;
+  for (let i = 0; i < 80; i++) {
+    const events = stepSimulation(simBumper, level14, 1 / 60);
+    if (events.some((e) => e.type === 'bumper')) {
+      hitSnowball = true;
+      break;
+    }
+  }
+  assert.equal(hitSnowball, true, 'tee shot should ricochet off circular snowball bumper');
+
+  // Approach from right arch down into the hole at (706, 386)
+  const simFinish = createInitialSimState(level14);
+  simFinish.ball.x = 716;
+  simFinish.ball.y = 270;
+  launchBall(simFinish.ball, -20, 230);
+  let sank = false;
+  for (let i = 0; i < 240; i++) {
+    const events = stepSimulation(simFinish, level14, 1 / 60);
+    if (events.some((e) => e.type === 'hole_sink')) {
+      sank = true;
+      break;
+    }
+  }
+  assert.equal(sank, true, 'approach down right leg of curved course should sink into Hole 14 cup');
+});
+
+test('Hole 15 Crystal Crossing offers navigable upper and lower maze routes across alternating ice and normal turf', () => {
+  const level15 = LEVELS[14];
+  assert.equal(level15.theme, 'frost');
+  assert.equal(level15.par, 4);
+  assert.ok(
+    (level15.hazards?.filter((h) => h.kind === 'ice').length ?? 0) >= 4,
+    'Hole 15 should have multiple alternating icy patches'
+  );
+
+  // Upper route glide above crystal pillar (y = 128) cleanly traverses past x = 520 before exit baffle
+  const simUpper = createInitialSimState(level15);
+  simUpper.ball.x = 340;
+  simUpper.ball.y = 128;
+  launchBall(simUpper.ball, 300, 0);
+  let upperMaxX = simUpper.ball.x;
+  for (let i = 0; i < 120; i++) {
+    stepSimulation(simUpper, level15, 1 / 60);
+    if (simUpper.ball.x > upperMaxX) upperMaxX = simUpper.ball.x;
+  }
+  assert.ok(
+    upperMaxX > 520,
+    `upper maze route should glide cleanly past crystal pillar (maxX=${upperMaxX.toFixed(1)})`
+  );
+
+  // Upper route exit corridor below l15-upper-stone-2 (y = 216) cleanly clears into the green
+  const simUpperExit = createInitialSimState(level15);
+  simUpperExit.ball.x = 500;
+  simUpperExit.ball.y = 216;
+  launchBall(simUpperExit.ball, 320, 0);
+  for (let i = 0; i < 120; i++) {
+    stepSimulation(simUpperExit, level15, 1 / 60);
+  }
+  assert.ok(
+    simUpperExit.ball.x > 640,
+    `upper exit corridor should pass cleanly beneath exit baffle (x=${simUpperExit.ball.x.toFixed(1)})`
+  );
+
+  // Lower route glide below lower crystal pillar (y = 398) cleanly traverses toward exit bank
+  const simLower = createInitialSimState(level15);
+  simLower.ball.x = 385;
+  simLower.ball.y = 398;
+  launchBall(simLower.ball, 380, 0);
+  for (let i = 0; i < 120; i++) {
+    stepSimulation(simLower, level15, 1 / 60);
+  }
+  assert.ok(
+    simLower.ball.x > 560,
+    `lower maze route should glide cleanly past lower crystal obstacle (x=${simLower.ball.x.toFixed(1)})`
+  );
+});
+
+test('Hole 16 Blizzard Finale combines ice sheets, snowball bumpers, rotating obstacle, and fair final approach', () => {
+  const level16 = LEVELS[15];
+  assert.equal(level16.theme, 'frost');
+  assert.equal(level16.par, 5);
+  assert.equal(level16.bumpers.length, 3, 'Hole 16 should feature 3 snowball bumpers');
+  assert.equal(level16.rotators.length, 1, 'Hole 16 should feature 1 rotating obstacle');
+  assert.ok(
+    (level16.hazards?.filter((h) => h.kind === 'ice').length ?? 0) >= 3,
+    'Hole 16 should feature icy surfaces'
+  );
+
+  // Verify rotating frost spinner physically strikes a ball in its sweep
+  const simRot = createInitialSimState(level16);
+  const rot = level16.rotators[0];
+  simRot.ball.x = rot.cx + 52;
+  simRot.ball.y = rot.cy;
+  let struck = false;
+  for (let i = 0; i < 240; i++) {
+    const events = stepSimulation(simRot, level16, 1 / 60);
+    if (events.some((e) => e.type === 'rotator')) {
+      struck = true;
+      break;
+    }
+  }
+  assert.equal(struck, true, 'Hole 16 rotating obstacle must physically block/deflect the ball');
+
+  // Verify fair final approach through the frosted stone gate into the finale cup
+  const simApproach = createInitialSimState(level16);
+  simApproach.ball.x = 585;
+  simApproach.ball.y = 270;
+  launchBall(simApproach.ball, 250, 0);
+  let sank = false;
+  for (let i = 0; i < 240; i++) {
+    const events = stepSimulation(simApproach, level16, 1 / 60);
+    if (events.some((e) => e.type === 'hole_sink')) {
+      sank = true;
+      break;
+    }
+  }
+  assert.equal(sank, true, 'final approach through frosted stone pillars should glide fairly into Hole 16 cup');
 });

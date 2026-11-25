@@ -1,9 +1,13 @@
 import type { GithubUser } from '../hooks/useGithubAuth';
+import { golfAudio } from '../game/audio';
 
 interface TitleScreenProps {
   totalLevels: number;
   bestTotal: number | null;
   totalPar: number;
+  earnedStars: number;
+  maxStars: number;
+  completedHoles: number;
   githubUser: GithubUser | null;
   githubConnecting: boolean;
   githubError: string | null;
@@ -12,6 +16,7 @@ interface TitleScreenProps {
   onDisconnectGithub: () => void;
   onDismissGithubError: () => void;
   onStart: () => void;
+  onOpenCourses: () => void;
 }
 
 function GithubMarkSvg() {
@@ -26,6 +31,9 @@ export function TitleScreen({
   totalLevels,
   bestTotal,
   totalPar,
+  earnedStars,
+  maxStars,
+  completedHoles,
   githubUser,
   githubConnecting,
   githubError,
@@ -34,20 +42,21 @@ export function TitleScreen({
   onDisconnectGithub,
   onDismissGithubError,
   onStart,
+  onOpenCourses,
 }: TitleScreenProps) {
   return (
-    <div className="fixed inset-0 z-20 flex flex-col items-center justify-between px-4 sm:px-6 py-4 sm:py-6 pointer-events-none">
+    <div className="fixed inset-0 z-20 flex flex-col items-center justify-between px-4 sm:px-6 py-3.5 sm:py-6 pointer-events-none">
       {/* Subtle radial vignette behind center emblem so title pops cleanly while live course stays visible */}
       <div
         aria-hidden="true"
         className="fixed inset-0 -z-10"
         style={{
           background:
-            'radial-gradient(circle at 50% 48%, rgba(12, 58, 70, 0.58) 0%, rgba(12, 58, 70, 0.22) 55%, rgba(9, 44, 54, 0.45) 100%)',
+            'radial-gradient(circle at 50% 46%, rgba(10, 48, 60, 0.62) 0%, rgba(12, 58, 70, 0.24) 55%, rgba(9, 44, 54, 0.48) 100%)',
         }}
       />
 
-      {/* Top Row: Compact GitHub Connection Plaque (Right-Aligned) */}
+      {/* Top Row: Optional GitHub Connection Plaque (Right-Aligned) */}
       <div className="w-full flex flex-col items-end gap-2 pointer-events-auto">
         {githubUser ? (
           <div className="flex items-center gap-2 bg-[#FFF8E7] border-[3px] border-[#522810] rounded-2xl px-3 py-1.5 shadow-[0_4px_0_#522810]">
@@ -63,7 +72,10 @@ export function TitleScreen({
             </span>
             <button
               type="button"
-              onClick={onDisconnectGithub}
+              onClick={() => {
+                golfAudio.playButtonClick();
+                onDisconnectGithub();
+              }}
               className="ml-1 text-[11px] font-extrabold text-[#8A4B20] hover:text-[#C2410C] underline cursor-pointer"
             >
               Disconnect
@@ -74,8 +86,11 @@ export function TitleScreen({
             type="button"
             data-testid="github-connect-btn"
             disabled={githubConnecting}
-            onClick={onConnectGithub}
-            className="flex items-center gap-2 bg-[#24292F] hover:bg-[#32383F] disabled:opacity-70 active:translate-y-0.5 text-[#FFFDF5] text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+            onClick={() => {
+              golfAudio.playButtonClick();
+              onConnectGithub();
+            }}
+            className="min-h-[42px] flex items-center gap-2 bg-[#24292F] hover:bg-[#32383F] hover:-translate-y-0.5 disabled:opacity-70 active:translate-y-0.5 text-[#FFFDF5] text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
             <GithubMarkSvg />
             <span>{githubConnecting ? 'Connecting...' : 'Connect GitHub'}</span>
@@ -107,16 +122,22 @@ export function TitleScreen({
         )}
       </div>
 
-      {/* Centerpiece SVG Emblem Crest & Primary CTA */}
-      <div className="flex flex-col items-center text-center max-w-xl w-full pointer-events-auto">
-        <div className="animate-float-slow w-full max-w-[440px]">
+      {/* Centerpiece SVG Emblem Crest & Clean Action Hierarchy */}
+      <div className="animate-modal-pop flex flex-col items-center text-center max-w-xl w-full pointer-events-auto">
+        <div className="animate-float-slow w-full max-w-[360px] sm:max-w-[445px]">
           <svg
             viewBox="0 0 460 215"
-            className="w-full h-auto drop-shadow-[0_10px_0_rgba(44,24,16,0.38)]"
+            className="w-full h-auto drop-shadow-[0_11px_0_rgba(44,24,16,0.42)]"
             role="img"
             aria-label="Pocket Golf Trick Shots"
           >
-            {/* Wooden arcade crest ribbon backing */}
+            <defs>
+              <clipPath id="crest-turf-clip">
+                <rect x="41" y="47" width="378" height="122" rx="21" />
+              </clipPath>
+            </defs>
+
+            {/* Wooden arcade crest backing */}
             <rect
               x="28"
               y="34"
@@ -137,15 +158,19 @@ export function TitleScreen({
               stroke="#247A3C"
               strokeWidth="4"
             />
-            {/* Mowed stripes inside crest */}
-            <clipPath id="crest-turf-clip">
-              <rect x="41" y="47" width="378" height="122" rx="21" />
-            </clipPath>
+
+            {/* Mowed turf stripes + subtle periodic shine glint inside crest */}
             <g clipPath="url(#crest-turf-clip)">
               <rect x="65" y="45" width="46" height="130" fill="#2FA752" />
               <rect x="157" y="45" width="46" height="130" fill="#2FA752" />
               <rect x="249" y="45" width="46" height="130" fill="#2FA752" />
               <rect x="341" y="45" width="46" height="130" fill="#2FA752" />
+              {/* Subtle animated sheen ribbon */}
+              <polygon
+                className="animate-crest-shine"
+                points="0,42 54,42 18,175 -36,175"
+                fill="rgba(255, 255, 255, 0.28)"
+              />
             </g>
 
             {/* Golf ball & fluttering coral pennant crest topper */}
@@ -156,6 +181,20 @@ export function TitleScreen({
             {/* Mini flag sticking out right */}
             <line x1="252" y1="30" x2="252" y2="5" stroke="#522810" strokeWidth="4.5" strokeLinecap="round" />
             <path d="M254 6 L284 14 L254 22 Z" fill="#FF4D4F" stroke="#522810" strokeWidth="3" strokeLinejoin="round" />
+
+            {/* Subtle sparkle accents flanking the topper */}
+            <path
+              className="animate-sparkle"
+              style={{ transformOrigin: '188px 24px' }}
+              d="M188 15 Q188 24 197 24 Q188 24 188 33 Q188 24 179 24 Q188 24 188 15 Z"
+              fill="#FDE047"
+            />
+            <path
+              className="animate-sparkle"
+              style={{ transformOrigin: '296px 26px', animationDelay: '0.8s' }}
+              d="M296 19 Q296 26 303 26 Q296 26 296 33 Q296 26 289 26 Q296 26 296 19 Z"
+              fill="#FFFDF5"
+            />
 
             {/* Main Display Title: POCKET GOLF */}
             <text
@@ -200,25 +239,44 @@ export function TitleScreen({
           </svg>
         </div>
 
-        {/* Primary CTA */}
-        <button
-          type="button"
-          data-start="true"
-          onClick={onStart}
-          className="mt-6 font-display text-2xl sm:text-[28px] font-bold tracking-wide text-[#FFFDF5] bg-[#FF595E] hover:bg-[#FF4248] active:translate-y-1 px-11 py-4 rounded-2xl border-[4px] border-[#522810] shadow-[0_6px_0_#522810] active:shadow-[0_2px_0_#522810] transition-transform duration-150 cursor-pointer focus-visible:outline-4 focus-visible:outline-[#FDE047] whitespace-nowrap"
-        >
-          Play Course
-        </button>
+        {/* Clean Tactile Primary & Secondary Arcade Actions */}
+        <div className="mt-5 sm:mt-6 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-md px-2">
+          <button
+            type="button"
+            data-start="true"
+            onClick={() => {
+              golfAudio.playCardSelect();
+              onStart();
+            }}
+            className="w-full sm:w-auto min-h-[56px] font-display text-2xl sm:text-[26px] font-bold tracking-wide text-[#FFFDF5] bg-[#FF595E] hover:bg-[#FF4248] hover:-translate-y-0.5 active:translate-y-1 px-9 py-3.5 rounded-2xl border-[4px] border-[#522810] shadow-[0_6px_0_#522810] hover:shadow-[0_7px_0_#522810] active:shadow-[0_2px_0_#522810] transition-all duration-150 cursor-pointer focus-visible:outline-4 focus-visible:outline-[#FDE047] whitespace-nowrap"
+          >
+            Play Course
+          </button>
 
-        {/* Quiet unboxed course metadata */}
-        <p className="mt-4 text-sm font-semibold text-[#FFF8E7] drop-shadow-[0_2px_2px_rgba(0,0,0,0.65)] tabular-nums">
+          <button
+            type="button"
+            data-testid="select-course-btn"
+            onClick={() => {
+              golfAudio.playButtonClick();
+              onOpenCourses();
+            }}
+            className="w-full sm:w-auto min-h-[56px] font-display text-xl sm:text-[22px] font-bold tracking-wide text-[#3B1D0E] bg-[#FFF6DF] hover:bg-[#FDECC8] hover:-translate-y-0.5 active:translate-y-1 px-7 py-3.5 rounded-2xl border-[4px] border-[#522810] shadow-[0_6px_0_#522810] hover:shadow-[0_7px_0_#522810] active:shadow-[0_2px_0_#522810] transition-all duration-150 cursor-pointer focus-visible:outline-4 focus-visible:outline-[#FDE047] whitespace-nowrap"
+          >
+            Select Course
+          </button>
+        </div>
+
+        {/* Quiet Unboxed Progress & Course Summary */}
+        <p className="mt-4 text-xs sm:text-sm font-bold text-[#FFF8E7] drop-shadow-[0_2px_3px_rgba(0,0,0,0.72)] tabular-nums">
           {totalLevels} Holes · Par {totalPar}
+          {earnedStars > 0 ? ` · ★ ${earnedStars}/${maxStars} Stars` : ''}
+          {completedHoles > 0 ? ` · ${completedHoles}/${totalLevels} Cleared` : ''}
           {bestTotal !== null ? ` · Best ${bestTotal}` : ''}
         </p>
       </div>
 
       {/* Flat borderless control hint in bottom safe margin */}
-      <p className="text-xs sm:text-sm font-semibold text-[#FFF8E7]/95 drop-shadow-[0_2px_3px_rgba(0,0,0,0.7)] text-center">
+      <p className="text-[11px] sm:text-sm font-semibold text-[#FFF8E7]/95 drop-shadow-[0_2px_3px_rgba(0,0,0,0.72)] text-center px-2">
         Drag back to aim · Release to shoot · R Restart · P Pause
       </p>
     </div>
