@@ -3,6 +3,7 @@ import { GolfCanvas, GolfCanvasHandle } from './components/GolfCanvas';
 import { GameHud } from './components/GameHud';
 import { LevelClearModal, PauseModal, VictoryModal } from './components/GameModals';
 import { TitleScreen } from './components/TitleScreen';
+import { useGithubAuth } from './hooks/useGithubAuth';
 import { golfAudio } from './game/audio';
 import { LEVELS } from './game/levels';
 import { GamePhase } from './game/types';
@@ -65,6 +66,7 @@ export default function App() {
   );
   const [muted, setMuted] = useState<boolean>(false);
   const [bestTotal, setBestTotal] = useState<number | null>(() => readStoredBest());
+  const github = useGithubAuth();
 
   const totalPar = useMemo(
     () => LEVELS.reduce((acc, lvl) => acc + lvl.par, 0),
@@ -239,6 +241,13 @@ export default function App() {
           totalLevels={LEVELS.length}
           bestTotal={bestTotal}
           totalPar={totalPar}
+          githubUser={github.user}
+          githubConnecting={github.connecting}
+          githubError={github.error}
+          githubCallbackUrlHint={github.callbackUrlHint}
+          onConnectGithub={github.connect}
+          onDisconnectGithub={github.disconnect}
+          onDismissGithubError={github.clearError}
           onStart={handleStartCourse}
         />
       )}
@@ -286,6 +295,12 @@ export default function App() {
         <VictoryModal
           holeStrokes={holeStrokes}
           bestTotal={bestTotal}
+          githubUser={github.user}
+          githubConnecting={github.connecting}
+          githubError={github.error}
+          githubCallbackUrlHint={github.callbackUrlHint}
+          onConnectGithub={github.connect}
+          onShareScorecard={github.shareScorecard}
           onPlayAgain={handleStartCourse}
           onTitle={handleReturnToTitle}
         />

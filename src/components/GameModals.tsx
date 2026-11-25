@@ -1,5 +1,8 @@
+import { useState } from 'react';
+import type { GithubUser } from '../hooks/useGithubAuth';
 import { LEVELS } from '../game/levels';
 import { formatParDelta, getScoreLabel } from '../game/physics';
+import type { ScorecardEntry } from '../server/githubHelpers';
 
 interface PauseModalProps {
   levelNumber: number;
@@ -183,6 +186,12 @@ export function LevelClearModal({
 interface VictoryModalProps {
   holeStrokes: number[];
   bestTotal: number | null;
+  githubUser: GithubUser | null;
+  githubConnecting: boolean;
+  githubError: string | null;
+  githubCallbackUrlHint: string | null;
+  onConnectGithub: () => void;
+  onShareScorecard: (holes: ScorecardEntry[]) => Promise<string>;
   onPlayAgain: () => void;
   onTitle: () => void;
 }
@@ -190,9 +199,19 @@ interface VictoryModalProps {
 export function VictoryModal({
   holeStrokes,
   bestTotal,
+  githubUser,
+  githubConnecting,
+  githubError,
+  githubCallbackUrlHint,
+  onConnectGithub,
+  onShareScorecard,
   onPlayAgain,
   onTitle,
 }: VictoryModalProps) {
+  const [savingGist, setSavingGist] = useState(false);
+  const [gistUrl, setGistUrl] = useState<string | null>(null);
+  const [gistError, setGistError] = useState<string | null>(null);
+
   const totalPar = LEVELS.reduce((acc, lvl) => acc + lvl.par, 0);
   const totalStrokes = holeStrokes.reduce((acc, s) => acc + s, 0);
   const deltaText = formatParDelta(totalStrokes, totalPar);
@@ -209,6 +228,25 @@ export function VictoryModal({
 
   const firstHalf = LEVELS.slice(0, Math.ceil(LEVELS.length / 2));
   const secondHalf = LEVELS.slice(Math.ceil(LEVELS.length / 2));
+
+  const handleSaveToGithub = async () => {
+    setSavingGist(true);
+    setGistError(null);
+    try {
+      const entries: ScorecardEntry[] = LEVELS.map((lvl, idx) => ({
+        id: lvl.id,
+        name: lvl.name,
+        par: lvl.par,
+        strokes: holeStrokes[idx] ?? 0,
+      }));
+      const url = await onShareScorecard(entries);
+      setGistUrl(url);
+    } catch (err) {
+      setGistError(err instanceof Error ? err.message : 'Could not save scorecard to GitHub.');
+    } finally {
+      setSavingGist(false);
+    }
+  };
 
   return (
     <div
@@ -341,6 +379,56 @@ export function VictoryModal({
             Personal Best: {bestTotal} Strokes
           </p>
         )}
+
+        {/* GitHub Scorecard Save / Connect Row */}
+        <div className="mt-3 flex flex-col items-center gap-1.5">
+          {githubUser ? (
+            gistUrl ? (
+              <a
+                href={gistUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-xs sm:text-sm font-extrabold text-[#15803D] hover:underline"
+              >
+                Saved to @{githubUser.login}&apos;s GitHub Gist — View Scorecard ↗
+              </a>
+            ) : (
+              <button
+                type="button"
+                disabled={savingGist}
+                onClick={handleSaveToGithub}
+                className="inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-[#FFFDF5] bg-[#24292F] hover:bg-[#32383F] disabled:opacity-70 px-4 py-2 rounded-xl border-[2.5px] border-[#522810] shadow-[0_3px_0_#522810] cursor-pointer"
+              >
+                <span>
+                  {savingGist
+                    ? 'Saving to GitHub...'
+                    : `Save Scorecard to GitHub (@${githubUser.login})`}
+                </span>
+              </button>
+            )
+          ) : (
+            <button
+              type="button"
+              disabled={githubConnecting}
+              onClick={onConnectGithub}
+              className="inline-flex items-center gap-2 text-xs font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] px-3.5 py-1.5 rounded-xl border-2 border-[#522810] cursor-pointer"
+            >
+              <span>
+                {githubConnecting ? 'Connecting GitHub...' : 'Connect GitHub to Save Scorecard'}
+              </span>
+            </button>
+          )}
+          {(gistError || githubError) && (
+            <div className="max-w-md rounded-xl border-2 border-[#522810] bg-[#FFF4D6] px-3 py-2 text-center">
+              <p className="text-xs font-bold text-[#C2410C]">{gistError || githubError}</p>
+              {githubCallbackUrlHint && !gistError && (
+                <p className="mt-1 text-[11px] font-semibold text-[#6E3D1B] break-all">
+                  Callback URL: <span className="font-mono">{githubCallbackUrlHint}</span>
+                </p>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="mt-3.5 flex flex-col sm:flex-row gap-2.5">
           <button

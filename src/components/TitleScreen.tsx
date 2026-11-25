@@ -1,13 +1,42 @@
+import type { GithubUser } from '../hooks/useGithubAuth';
+
 interface TitleScreenProps {
   totalLevels: number;
   bestTotal: number | null;
   totalPar: number;
+  githubUser: GithubUser | null;
+  githubConnecting: boolean;
+  githubError: string | null;
+  githubCallbackUrlHint: string | null;
+  onConnectGithub: () => void;
+  onDisconnectGithub: () => void;
+  onDismissGithubError: () => void;
   onStart: () => void;
 }
 
-export function TitleScreen({ totalLevels, bestTotal, totalPar, onStart }: TitleScreenProps) {
+function GithubMarkSvg() {
   return (
-    <div className="fixed inset-0 z-20 flex flex-col items-center justify-between px-6 py-8 sm:py-10 pointer-events-none">
+    <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="currentColor" aria-hidden="true">
+      <path d="M12 2C6.48 2 2 6.58 2 12.26c0 4.54 2.87 8.39 6.84 9.75.5.09.68-.22.68-.49 0-.24-.01-.88-.01-1.72-2.78.62-3.37-1.37-3.37-1.37-.45-1.18-1.11-1.49-1.11-1.49-.91-.64.07-.63.07-.63 1 .07 1.53 1.06 1.53 1.06.89 1.57 2.34 1.12 2.91.85.09-.66.35-1.12.63-1.38-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.03 1.03-2.75-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.38 9.38 0 0 1 12 6.84c.85 0 1.71.12 2.51.35 1.91-1.33 2.75-1.05 2.75-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.63 1.03 2.75 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.48-.01 2.82 0 .27.18.59.69.49A10.27 10.27 0 0 0 22 12.26C22 6.58 17.52 2 12 2Z" />
+    </svg>
+  );
+}
+
+export function TitleScreen({
+  totalLevels,
+  bestTotal,
+  totalPar,
+  githubUser,
+  githubConnecting,
+  githubError,
+  githubCallbackUrlHint,
+  onConnectGithub,
+  onDisconnectGithub,
+  onDismissGithubError,
+  onStart,
+}: TitleScreenProps) {
+  return (
+    <div className="fixed inset-0 z-20 flex flex-col items-center justify-between px-4 sm:px-6 py-4 sm:py-6 pointer-events-none">
       {/* Subtle radial vignette behind center emblem so title pops cleanly while live course stays visible */}
       <div
         aria-hidden="true"
@@ -18,8 +47,65 @@ export function TitleScreen({ totalLevels, bestTotal, totalPar, onStart }: Title
         }}
       />
 
-      {/* Top spacer for balanced vertical framing */}
-      <div className="h-4 sm:h-6" />
+      {/* Top Row: Compact GitHub Connection Plaque (Right-Aligned) */}
+      <div className="w-full flex flex-col items-end gap-2 pointer-events-auto">
+        {githubUser ? (
+          <div className="flex items-center gap-2 bg-[#FFF8E7] border-[3px] border-[#522810] rounded-2xl px-3 py-1.5 shadow-[0_4px_0_#522810]">
+            {githubUser.avatarUrl && (
+              <img
+                src={githubUser.avatarUrl}
+                alt={githubUser.login}
+                className="w-6 h-6 rounded-full border-2 border-[#522810]"
+              />
+            )}
+            <span className="text-xs sm:text-sm font-extrabold text-[#3B1D0E]">
+              @{githubUser.login}
+            </span>
+            <button
+              type="button"
+              onClick={onDisconnectGithub}
+              className="ml-1 text-[11px] font-extrabold text-[#8A4B20] hover:text-[#C2410C] underline cursor-pointer"
+            >
+              Disconnect
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            data-testid="github-connect-btn"
+            disabled={githubConnecting}
+            onClick={onConnectGithub}
+            className="flex items-center gap-2 bg-[#24292F] hover:bg-[#32383F] disabled:opacity-70 active:translate-y-0.5 text-[#FFFDF5] text-xs sm:text-sm font-bold px-3.5 py-2 rounded-xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+          >
+            <GithubMarkSvg />
+            <span>{githubConnecting ? 'Connecting...' : 'Connect GitHub'}</span>
+          </button>
+        )}
+
+        {githubError && (
+          <div
+            role="status"
+            className="max-w-xs sm:max-w-sm bg-[#FFF8E7] border-[3px] border-[#522810] rounded-2xl px-3.5 py-2.5 shadow-[0_5px_0_#522810] text-left text-xs text-[#3B1D0E]"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-bold leading-snug">{githubError}</p>
+              <button
+                type="button"
+                onClick={onDismissGithubError}
+                aria-label="Dismiss GitHub notice"
+                className="text-[#8A4B20] hover:text-[#3B1D0E] font-extrabold cursor-pointer shrink-0"
+              >
+                ×
+              </button>
+            </div>
+            {githubCallbackUrlHint && (
+              <p className="mt-1.5 text-[11px] font-semibold text-[#6E3D1B] break-all">
+                Callback URL: <span className="font-mono">{githubCallbackUrlHint}</span>
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Centerpiece SVG Emblem Crest & Primary CTA */}
       <div className="flex flex-col items-center text-center max-w-xl w-full pointer-events-auto">
