@@ -202,11 +202,25 @@ export interface SimState {
   bumperPulse: Record<string, number>;
 }
 
-export type GamePhase = 'title' | 'course_select' | 'playing' | 'paused' | 'level_clear' | 'victory';
+export type GamePhase =
+  | 'title'
+  | 'course_select'
+  | 'settings'
+  | 'playing'
+  | 'paused'
+  | 'level_clear'
+  | 'out_of_strokes'
+  | 'victory';
+
+export interface AudioPreferences {
+  soundEnabled: boolean;
+  musicEnabled: boolean;
+}
 
 export interface ScoreLabelInfo {
   title: string;
   detail: string;
   stars: 1 | 2 | 3;
   tone: 'gold' | 'emerald' | 'sky' | 'coral';
+  isLastChance?: boolean;
 }

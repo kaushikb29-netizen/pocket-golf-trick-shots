@@ -1,6 +1,6 @@
 import { LEVELS } from './levels';
-import { getScoreLabel } from './physics';
-import type { LevelTheme } from './types';
+import { calculateStars } from './physics';
+import type { AudioPreferences, LevelTheme } from './types';
 
 export interface CourseWorld {
   id: 'sunny-garden' | 'tropical-trouble' | 'neon-nights' | 'frost-falls';
@@ -62,9 +62,13 @@ export interface HoleProgressRecord {
 }
 
 export interface ProgressStore {
-  version: 1;
+  version: 2;
   holes: Record<number, HoleProgressRecord>;
+  completedHoles: number[];
+  lastUnlockedHole: number;
+  totalStars: number;
   bestFullCourseTotal: number | null;
+  audio: AudioPreferences;
 }
 
 export type WorldCompletionStatus = 'not_started' | 'in_progress' | 'completed';
@@ -91,18 +95,66 @@ export interface OverallProgressStats {
 export const PROGRESS_STORAGE_KEY = 'pocket-golf-trick-shots-progress-v1';
 export const LEGACY_BEST_SCORE_KEY = 'pocket-golf-trick-shots-best-16';
 
-export function createEmptyProgress(bestFullCourseTotal: number | null = null): ProgressStore {
+export const DEFAULT_AUDIO_PREFS: AudioPreferences = {
+  soundEnabled: true,
+  musicEnabled: true,
+};
+
+function reconcileDerivedFields(
+  holes: Record<number, HoleProgressRecord>,
+  storedLastUnlocked: number | null,
+  bestFullCourseTotal: number | null,
+  audio: AudioPreferences
+): ProgressStore {
+  const completedHoles = Object.keys(holes)
+    .map((k) => Number.parseInt(k, 10))
+    .filter((id) => Number.isFinite(id) && id >= 1 && id <= LEVELS.length)
+    .sort((a, b) => a - b);
+
+  let totalStars = 0;
+  let maxCompleted = 0;
+  for (const id of completedHoles) {
+    const rec = holes[id];
+    if (rec) {
+      totalStars += rec.stars;
+      if (id > maxCompleted) maxCompleted = id;
+    }
+  }
+
+  const derivedUnlocked = Math.min(LEVELS.length, Math.max(1, maxCompleted + 1));
+  const lastUnlockedHole = Math.min(
+    LEVELS.length,
+    Math.max(1, derivedUnlocked, storedLastUnlocked ?? 1)
+  );
+
   return {
-    version: 1,
-    holes: {},
+    version: 2,
+    holes,
+    completedHoles,
+    lastUnlockedHole,
+    totalStars,
     bestFullCourseTotal,
+    audio,
   };
+}
+
+export function createEmptyProgress(
+  bestFullCourseTotal: number | null = null,
+  audio: AudioPreferences = { ...DEFAULT_AUDIO_PREFS }
+): ProgressStore {
+  return reconcileDerivedFields({}, 1, bestFullCourseTotal, audio);
 }
 
 export function getWorldForLevelId(levelId: number): CourseWorld {
   return (
     COURSE_WORLDS.find((world) => world.holeIds.includes(levelId)) ?? COURSE_WORLDS[0]
   );
+}
+
+export function isHoleUnlocked(progress: ProgressStore, holeId: number): boolean {
+  if (holeId <= 1) return true;
+  if (holeId > LEVELS.length) return false;
+  return holeId <= progress.lastUnlockedHole || Boolean(progress.holes[holeId]);
 }
 
 export function recordHoleCompletion(
@@ -117,8 +169,8 @@ export function recordHoleCompletion(
   previousBest: number | null;
 } {
   const safeStrokes = Math.max(1, Math.round(strokes));
-  const scoreInfo = getScoreLabel(safeStrokes, par);
-  const earnedStars = scoreInfo.stars;
+  const rawStars = calculateStars(safeStrokes, par, true);
+  const earnedStars = (rawStars === 0 ? 1 : rawStars) as 1 | 2 | 3;
   const existing = progress.holes[levelId];
   const previousBest = existing ? existing.bestStrokes : null;
   const isNewBest = previousBest === null || safeStrokes < previousBest;
@@ -130,14 +182,19 @@ export function recordHoleCompletion(
       : earnedStars,
   };
 
+  const nextHoles: Record<number, HoleProgressRecord> = {
+    ...progress.holes,
+    [levelId]: updatedRecord,
+  };
+  const nextUnlocked = Math.min(LEVELS.length, Math.max(progress.lastUnlockedHole, levelId + 1));
+
   return {
-    progress: {
-      ...progress,
-      holes: {
-        ...progress.holes,
-        [levelId]: updatedRecord,
-      },
-    },
+    progress: reconcileDerivedFields(
+      nextHoles,
+      nextUnlocked,
+      progress.bestFullCourseTotal,
+      progress.audio
+    ),
     stars: earnedStars,
     isNewBest,
     previousBest,
@@ -161,6 +218,27 @@ export function recordFullCourseBest(
     },
     isNewBest: true,
   };
+}
+
+export function updateAudioPreferences(
+  progress: ProgressStore,
+  patch: Partial<AudioPreferences>
+): ProgressStore {
+  return {
+    ...progress,
+    audio: {
+      soundEnabled: patch.soundEnabled ?? progress.audio.soundEnabled,
+      musicEnabled: patch.musicEnabled ?? progress.audio.musicEnabled,
+    },
+  };
+}
+
+export function resetSavedProgress(
+  progress: ProgressStore,
+  preserveAudio = true
+): ProgressStore {
+  const audio = preserveAudio ? { ...progress.audio } : { ...DEFAULT_AUDIO_PREFS };
+  return createEmptyProgress(null, audio);
 }
 
 export function getWorldStats(
@@ -241,7 +319,9 @@ export function deserializeProgress(
   }
 
   try {
-    const parsed = JSON.parse(rawProgressJson) as Partial<ProgressStore>;
+    const parsed = JSON.parse(rawProgressJson) as Partial<ProgressStore> & {
+      audio?: Partial<AudioPreferences>;
+    };
     const cleanHoles: Record<number, HoleProgressRecord> = {};
     if (parsed && typeof parsed.holes === 'object' && parsed.holes !== null) {
       for (const [key, value] of Object.entries(parsed.holes)) {
@@ -250,13 +330,22 @@ export function deserializeProgress(
         if (!value || typeof value !== 'object') continue;
         const rec = value as Partial<HoleProgressRecord>;
         const bestStrokes =
-          typeof rec.bestStrokes === 'number' && Number.isFinite(rec.bestStrokes) && rec.bestStrokes >= 1
+          typeof rec.bestStrokes === 'number' &&
+          Number.isFinite(rec.bestStrokes) &&
+          rec.bestStrokes >= 1
             ? Math.round(rec.bestStrokes)
             : null;
-        const stars =
+        const storedStars =
           rec.stars === 1 || rec.stars === 2 || rec.stars === 3 ? rec.stars : null;
-        if (bestStrokes !== null && stars !== null) {
-          cleanHoles[id] = { bestStrokes, stars };
+        if (bestStrokes !== null && storedStars !== null) {
+          // Preserve existing star rating and upgrade if current rules award higher stars for bestStrokes
+          const level = LEVELS[id - 1];
+          const computedStars = level ? calculateStars(bestStrokes, level.par, true) : storedStars;
+          const finalStars = Math.max(storedStars, computedStars === 0 ? 1 : computedStars) as
+            | 1
+            | 2
+            | 3;
+          cleanHoles[id] = { bestStrokes, stars: finalStars };
         }
       }
     }
@@ -273,11 +362,25 @@ export function deserializeProgress(
       mergedBest = legacyBest;
     }
 
-    return {
-      version: 1,
-      holes: cleanHoles,
-      bestFullCourseTotal: mergedBest,
+    const storedLastUnlocked =
+      typeof parsed?.lastUnlockedHole === 'number' &&
+      Number.isFinite(parsed.lastUnlockedHole) &&
+      parsed.lastUnlockedHole >= 1
+        ? Math.min(LEVELS.length, Math.round(parsed.lastUnlockedHole))
+        : null;
+
+    const audio: AudioPreferences = {
+      soundEnabled:
+        typeof parsed?.audio?.soundEnabled === 'boolean'
+          ? parsed.audio.soundEnabled
+          : DEFAULT_AUDIO_PREFS.soundEnabled,
+      musicEnabled:
+        typeof parsed?.audio?.musicEnabled === 'boolean'
+          ? parsed.audio.musicEnabled
+          : DEFAULT_AUDIO_PREFS.musicEnabled,
     };
+
+    return reconcileDerivedFields(cleanHoles, storedLastUnlocked, mergedBest, audio);
   } catch {
     return createEmptyProgress(legacyBest);
   }
@@ -300,6 +403,8 @@ export function saveProgressToStorage(progress: ProgressStore): void {
     window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
     if (progress.bestFullCourseTotal !== null) {
       window.localStorage.setItem(LEGACY_BEST_SCORE_KEY, String(progress.bestFullCourseTotal));
+    } else {
+      window.localStorage.removeItem(LEGACY_BEST_SCORE_KEY);
     }
   } catch {
     // Ignore storage unavailability (e.g. private browsing quota)

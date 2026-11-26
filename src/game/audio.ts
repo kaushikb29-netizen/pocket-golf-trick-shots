@@ -1,15 +1,46 @@
 /**
- * Lightweight procedural Web Audio synthesizer for cartoon arcade mini-golf SFX.
+ * Lightweight procedural Web Audio synthesizer for cartoon arcade mini-golf SFX & cozy music.
  * Gracefully degrades in environments without AudioContext or before user gesture.
  */
-export type CelebrationTier = 'hole_in_one' | 'eagle' | 'birdie' | 'par' | 'standard';
+export type CelebrationTier =
+  | 'hole_in_one'
+  | 'eagle'
+  | 'birdie'
+  | 'par'
+  | 'last_chance'
+  | 'standard';
+
+const MUSIC_PATTERN = [
+  523.25, // C5
+  659.25, // E5
+  783.99, // G5
+  659.25, // E5
+  587.33, // D5
+  698.46, // F5
+  880.0, // A5
+  698.46, // F5
+  493.88, // B4
+  587.33, // D5
+  783.99, // G5
+  587.33, // D5
+  523.25, // C5
+  659.25, // E5
+  783.99, // G5
+  1046.5, // C6
+];
 
 class GolfAudio {
   private ctx: AudioContext | null = null;
-  private muted = false;
+  private soundEnabled = true;
+  private musicEnabled = true;
+  private musicTimerId: number | null = null;
+  private musicStep = 0;
 
-  private ensureContext(): AudioContext | null {
-    if (this.muted || typeof window === 'undefined') return null;
+  private ensureContext(forMusic = false): AudioContext | null {
+    if (typeof window === 'undefined') return null;
+    if (!forMusic && !this.soundEnabled) return null;
+    if (forMusic && !this.musicEnabled) return null;
+
     if (!this.ctx) {
       const AudioCtx =
         window.AudioContext ||
@@ -27,18 +58,92 @@ class GolfAudio {
     return this.ctx;
   }
 
+  public setSoundEnabled(enabled: boolean): void {
+    this.soundEnabled = enabled;
+  }
+
+  public isSoundEnabled(): boolean {
+    return this.soundEnabled;
+  }
+
+  public setMusicEnabled(enabled: boolean): void {
+    this.musicEnabled = enabled;
+    if (!enabled) {
+      this.stopMusicLoop();
+    } else if (this.ctx && this.ctx.state === 'running') {
+      this.startMusicLoop();
+    }
+  }
+
+  public isMusicEnabled(): boolean {
+    return this.musicEnabled;
+  }
+
+  /** Legacy mute helper maps cleanly to sound + music together */
   public setMuted(muted: boolean): void {
-    this.muted = muted;
+    this.setSoundEnabled(!muted);
+    this.setMusicEnabled(!muted);
   }
 
   public isMuted(): boolean {
-    return this.muted;
+    return !this.soundEnabled && !this.musicEnabled;
+  }
+
+  /** Call on user gesture to unlock audio and start gentle background music if enabled */
+  public unlockAndStartMusic(): void {
+    if (!this.musicEnabled) return;
+    const ctx = this.ensureContext(true);
+    if (ctx) {
+      this.startMusicLoop();
+    }
+  }
+
+  private startMusicLoop(): void {
+    if (typeof window === 'undefined' || !this.musicEnabled) return;
+    if (this.musicTimerId !== null) return;
+
+    const scheduleNote = () => {
+      if (!this.musicEnabled) {
+        this.stopMusicLoop();
+        return;
+      }
+      const ctx = this.ctx;
+      if (!ctx || ctx.state !== 'running') return;
+
+      const freq = MUSIC_PATTERN[this.musicStep % MUSIC_PATTERN.length];
+      this.musicStep = (this.musicStep + 1) % MUSIC_PATTERN.length;
+
+      const now = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq * 0.5, now);
+
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.022, now + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.42);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.45);
+    };
+
+    this.musicTimerId = window.setInterval(scheduleNote, 460);
+  }
+
+  public stopMusicLoop(): void {
+    if (this.musicTimerId !== null && typeof window !== 'undefined') {
+      window.clearInterval(this.musicTimerId);
+      this.musicTimerId = null;
+    }
   }
 
   /** Crisp lightweight tactile button click for menus & HUD */
   public playButtonClick(): void {
     const ctx = this.ensureContext();
     if (!ctx) return;
+    if (this.musicEnabled) this.startMusicLoop();
 
     const now = ctx.currentTime;
     const osc = ctx.createOscillator();
@@ -60,6 +165,7 @@ class GolfAudio {
   public playCardSelect(): void {
     const ctx = this.ensureContext();
     if (!ctx) return;
+    if (this.musicEnabled) this.startMusicLoop();
 
     const now = ctx.currentTime;
     const notes = [440, 622.25];
@@ -82,6 +188,7 @@ class GolfAudio {
   public playPutt(power: number): void {
     const ctx = this.ensureContext();
     if (!ctx) return;
+    if (this.musicEnabled) this.startMusicLoop();
 
     const now = ctx.currentTime;
     const clampedPower = Math.max(0.08, Math.min(1, power));
@@ -151,7 +258,6 @@ class GolfAudio {
     const now = ctx.currentTime;
     const intensity = Math.min(1, impactSpeed / 550);
 
-    // Fundamental elastic bounce
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = 'sine';
@@ -167,7 +273,6 @@ class GolfAudio {
     osc.start(now);
     osc.stop(now + 0.21);
 
-    // Crisp bell-like overtone accent
     const shimmer = ctx.createOscillator();
     const shimmerGain = ctx.createGain();
     shimmer.type = 'triangle';
@@ -190,7 +295,6 @@ class GolfAudio {
 
     const now = ctx.currentTime;
 
-    // Soft cup drop plunk
     const plunk = ctx.createOscillator();
     const plunkGain = ctx.createGain();
     plunk.type = 'sine';
@@ -203,7 +307,6 @@ class GolfAudio {
     plunk.start(now);
     plunk.stop(now + 0.085);
 
-    // Tailored melodic celebration notes
     let notes: number[];
     let step = 0.072;
     let hold = 0.28;
@@ -212,6 +315,11 @@ class GolfAudio {
       notes = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98];
       step = 0.065;
       hold = 0.44;
+    } else if (tier === 'last_chance') {
+      // Heroic dramatic clutch save arpeggio
+      notes = [440, 554.37, 659.25, 880, 1108.73, 1318.5];
+      step = 0.062;
+      hold = 0.4;
     } else if (tier === 'eagle') {
       notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
       step = 0.07;
@@ -232,7 +340,7 @@ class GolfAudio {
       const gain = ctx.createGain();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, t);
-      gain.gain.setValueAtTime(tier === 'hole_in_one' ? 0.16 : 0.14, t);
+      gain.gain.setValueAtTime(tier === 'hole_in_one' || tier === 'last_chance' ? 0.16 : 0.14, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + hold);
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -240,10 +348,12 @@ class GolfAudio {
       osc.stop(t + hold + 0.02);
     });
 
-    // Extra warm harmonic sparkle chord for Hole-in-One & Eagle
-    if (tier === 'hole_in_one' || tier === 'eagle') {
+    if (tier === 'hole_in_one' || tier === 'eagle' || tier === 'last_chance') {
       const chordTime = now + 0.05 + (notes.length - 1) * step;
-      const chordFreqs = tier === 'hole_in_one' ? [523.25, 783.99, 1046.5] : [523.25, 783.99];
+      const chordFreqs =
+        tier === 'hole_in_one' || tier === 'last_chance'
+          ? [523.25, 783.99, 1046.5]
+          : [523.25, 783.99];
       chordFreqs.forEach((freq) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -257,6 +367,29 @@ class GolfAudio {
         osc.stop(chordTime + 0.57);
       });
     }
+  }
+
+  /** Sympathetic soft descending arcade cadence when player runs out of strokes */
+  public playOutOfStrokes(): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const notes = [392.0, 349.23, 311.13, 261.63];
+    notes.forEach((freq, idx) => {
+      const t = now + idx * 0.11;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq * 0.94, t + 0.22);
+      gain.gain.setValueAtTime(0.13, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.26);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.28);
+    });
   }
 
   public playVictoryFanfare(): void {
@@ -279,7 +412,6 @@ class GolfAudio {
       osc.stop(t + 0.5);
     });
 
-    // Final bright major triad resolve
     const resolveAt = now + notes.length * 0.085;
     [523.25, 659.25, 783.99, 1046.5].forEach((freq) => {
       const osc = ctx.createOscillator();

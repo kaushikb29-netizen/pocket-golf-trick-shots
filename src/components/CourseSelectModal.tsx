@@ -5,6 +5,7 @@ import {
   CourseWorld,
   getOverallProgressStats,
   getWorldStats,
+  isHoleUnlocked,
   ProgressStore,
 } from '../game/progression';
 
@@ -224,7 +225,7 @@ export function CourseSelectModal({
               id="course-select-title"
               className="font-display text-2xl sm:text-3xl font-bold text-[#3B1D0E] leading-tight"
             >
-              Select Course
+              Select Hole
             </h2>
             <p className="mt-0.5 text-xs sm:text-sm font-bold text-[#7C4B27] tabular-nums flex items-center gap-1.5 flex-wrap">
               <span>
@@ -235,6 +236,8 @@ export function CourseSelectModal({
                 <MiniStar filled size="sm" />
                 {overall.earnedStars}/{overall.maxStars} Stars
               </span>
+              <span aria-hidden="true">·</span>
+              <span>Unlocked up to Hole {progress.lastUnlockedHole}</span>
               {progress.bestFullCourseTotal !== null && (
                 <>
                   <span aria-hidden="true">·</span>
@@ -261,25 +264,34 @@ export function CourseSelectModal({
         <div className="mt-3.5 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-3.5">
           {COURSE_WORLDS.map((world) => {
             const stats = getWorldStats(progress, world);
-            const firstHoleIndex = world.holeIds[0] - 1;
-            const statusText =
+            const unlockedInWorld = world.holeIds.filter((id) => isHoleUnlocked(progress, id));
+            const worldUnlocked = unlockedInWorld.length > 0;
+            const targetHoleId =
               stats.status === 'completed'
-                ? 'Course Completed'
-                : stats.status === 'in_progress'
-                ? `${stats.completedCount}/${stats.totalHoles} Holes Cleared`
-                : 'Ready to Play';
-            const statusColor =
-              stats.status === 'completed'
-                ? 'text-[#15803D]'
-                : stats.status === 'in_progress'
-                ? 'text-[#B45309]'
-                : 'text-[#6E4726]';
+                ? world.holeIds[0]
+                : unlockedInWorld[unlockedInWorld.length - 1] ?? world.holeIds[0];
+            const statusText = !worldUnlocked
+              ? `Locked · Clear Hole ${world.holeIds[0] - 1}`
+              : stats.status === 'completed'
+              ? 'Course Completed'
+              : stats.status === 'in_progress'
+              ? `${stats.completedCount}/${stats.totalHoles} Holes Cleared`
+              : 'Ready to Play';
+            const statusColor = !worldUnlocked
+              ? 'text-[#9A6B42]'
+              : stats.status === 'completed'
+              ? 'text-[#15803D]'
+              : stats.status === 'in_progress'
+              ? 'text-[#B45309]'
+              : 'text-[#6E4726]';
 
             return (
               <article
                 key={world.id}
                 data-testid={`world-card-${world.id}`}
-                className="flex flex-col overflow-hidden rounded-2xl border-[3px] border-[#522810] bg-[#FFFDF7] shadow-[0_5px_0_rgba(82,40,16,0.22)] transition-transform duration-150 hover:-translate-y-0.5"
+                className={`flex flex-col overflow-hidden rounded-2xl border-[3px] border-[#522810] bg-[#FFFDF7] shadow-[0_5px_0_rgba(82,40,16,0.22)] transition-transform duration-150 ${
+                  worldUnlocked ? 'hover:-translate-y-0.5' : 'opacity-90'
+                }`}
               >
                 {/* Full-Bleed Illustrated Scene Header */}
                 <div className="relative border-b-[3px] border-[#522810] overflow-hidden">
@@ -328,28 +340,43 @@ export function CourseSelectModal({
                     {world.holeIds.map((holeId) => {
                       const lvl = LEVELS[holeId - 1];
                       const rec = progress.holes[holeId];
+                      const unlocked = isHoleUnlocked(progress, holeId);
                       return (
                         <button
                           key={holeId}
                           type="button"
+                          disabled={!unlocked}
+                          data-testid={`hole-btn-${holeId}`}
                           onClick={() => {
+                            if (!unlocked) return;
                             golfAudio.playCardSelect();
                             onSelectHole(holeId - 1);
                           }}
-                          aria-label={`Play Hole ${holeId}: ${lvl.name}, Par ${lvl.par}${
-                            rec ? `, Best ${rec.bestStrokes} strokes, ${rec.stars} stars` : ''
-                          }`}
-                          className={`min-h-[46px] flex flex-col items-center justify-center rounded-xl border-2 px-1 py-1 transition-transform duration-150 hover:-translate-y-0.5 active:translate-y-0.5 cursor-pointer ${
-                            rec
-                              ? 'border-[#522810] bg-[#FEF7E0] hover:bg-[#FDECC0]'
-                              : 'border-[#D7C29E] bg-[#FAF3E3] hover:border-[#522810] hover:bg-[#F7E8C7]'
+                          aria-label={
+                            unlocked
+                              ? `Play Hole ${holeId}: ${lvl.name}, Par ${lvl.par}${
+                                  rec ? `, Best ${rec.bestStrokes} strokes, ${rec.stars} stars` : ''
+                                }`
+                              : `Hole ${holeId} locked. Complete Hole ${holeId - 1} to unlock.`
+                          }
+                          className={`min-h-[46px] flex flex-col items-center justify-center rounded-xl border-2 px-1 py-1 transition-transform duration-150 ${
+                            !unlocked
+                              ? 'border-[#DFD2B8] bg-[#F2E9D6] text-[#9C8565] cursor-not-allowed opacity-75'
+                              : rec
+                              ? 'border-[#522810] bg-[#FEF7E0] hover:bg-[#FDECC0] hover:-translate-y-0.5 active:translate-y-0.5 cursor-pointer'
+                              : 'border-[#522810]/70 bg-[#FAF3E3] hover:border-[#522810] hover:bg-[#F7E8C7] hover:-translate-y-0.5 active:translate-y-0.5 cursor-pointer'
                           }`}
                         >
-                          <span className="font-display text-xs font-bold text-[#3B1D0E] leading-none">
-                            H{holeId}
+                          <span className="font-display text-xs font-bold leading-none flex items-center gap-0.5">
+                            {!unlocked && (
+                              <svg viewBox="0 0 16 16" className="w-2.5 h-2.5 shrink-0" fill="currentColor" aria-hidden="true">
+                                <path d="M5 7V5a3 3 0 0 1 6 0v2h1a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h1Zm1.5 0h3V5a1.5 1.5 0 0 0-3 0v2Z" />
+                              </svg>
+                            )}
+                            <span>H{holeId}</span>
                           </span>
-                          <span className="mt-0.5 text-[10px] font-bold text-[#7C4B27] tabular-nums leading-none">
-                            {rec ? `Best ${rec.bestStrokes}` : `Par ${lvl.par}`}
+                          <span className="mt-0.5 text-[10px] font-bold tabular-nums leading-none">
+                            {!unlocked ? 'Locked' : rec ? `Best ${rec.bestStrokes}` : `Par ${lvl.par}`}
                           </span>
                           <span className="mt-1 flex items-center gap-0.5">
                             <MiniStar filled={(rec?.stars ?? 0) >= 1} size="xs" />
@@ -364,16 +391,24 @@ export function CourseSelectModal({
                   {/* Primary World Play CTA */}
                   <button
                     type="button"
+                    disabled={!worldUnlocked}
                     onClick={() => {
+                      if (!worldUnlocked) return;
                       golfAudio.playCardSelect();
-                      onSelectHole(firstHoleIndex);
+                      onSelectHole(targetHoleId - 1);
                     }}
-                    className="min-h-[42px] w-full font-display text-base sm:text-lg font-bold text-[#FFFDF5] rounded-xl border-[3px] border-[#522810] shadow-[0_3.5px_0_#522810] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
-                    style={{ backgroundColor: world.accentHex }}
+                    className={`min-h-[42px] w-full font-display text-base sm:text-lg font-bold rounded-xl border-[3px] border-[#522810] transition-transform whitespace-nowrap ${
+                      worldUnlocked
+                        ? 'text-[#FFFDF5] shadow-[0_3.5px_0_#522810] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[0_1px_0_#522810] cursor-pointer'
+                        : 'text-[#8C6D4F] bg-[#E8DEC7] shadow-none cursor-not-allowed'
+                    }`}
+                    style={worldUnlocked ? { backgroundColor: world.accentHex } : undefined}
                   >
-                    {stats.status === 'completed'
+                    {!worldUnlocked
+                      ? `Unlock Hole ${world.holeIds[0]} to Play`
+                      : stats.status === 'completed'
                       ? `Replay ${world.name}`
-                      : `Play ${world.name}`}
+                      : `Play ${world.name} (Hole ${targetHoleId})`}
                   </button>
                 </div>
               </article>

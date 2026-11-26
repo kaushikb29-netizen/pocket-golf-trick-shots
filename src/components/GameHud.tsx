@@ -7,6 +7,7 @@ interface GameHudProps {
   levelNumber: number;
   totalLevels: number;
   strokes: number;
+  maxStrokes: number;
   muted: boolean;
   showFirstShotHint: boolean;
   onRestart: () => void;
@@ -19,6 +20,7 @@ export function GameHud({
   levelNumber,
   totalLevels,
   strokes,
+  maxStrokes,
   muted,
   showFirstShotHint,
   onRestart,
@@ -26,6 +28,10 @@ export function GameHud({
   onPause,
 }: GameHudProps) {
   const world = getWorldForLevelId(level.id);
+  const remaining = Math.max(0, maxStrokes - strokes);
+  const isFinalShot = remaining === 1;
+  const isExhausted = remaining === 0;
+
   const worldLabelColor =
     level.theme === 'frost'
       ? 'text-[#0369A1]'
@@ -35,13 +41,25 @@ export function GameHud({
       ? 'text-[#0E7490]'
       : 'text-[#247A3C]';
 
+  const strokesCardClass = isExhausted
+    ? 'bg-[#FEE2E2] border-[#B91C1C] shadow-[0_4px_0_#991B1B]'
+    : isFinalShot
+    ? 'bg-[#FFEDD5] border-[#C2410C] shadow-[0_4px_0_#9A3412]'
+    : 'bg-[#FFF6DF] border-[#522810] shadow-[0_4px_0_#522810]';
+
+  const remainingTextClass = isExhausted
+    ? 'text-[#B91C1C]'
+    : isFinalShot
+    ? 'text-[#C2410C]'
+    : 'text-[#247A3C]';
+
   return (
     <div className="fixed inset-0 z-10 pointer-events-none flex flex-col justify-between p-2 sm:p-4">
       {/* Top Perimeter Clusters: Wooden Arcade Plaques */}
       <div className="flex items-start justify-between gap-1.5 sm:gap-4 w-full">
         {/* Top-Left: Hole Info Plaque */}
         <div
-          className="pointer-events-auto flex items-center gap-2 sm:gap-3 bg-[#FFF6DF] border-[3px] border-[#522810] rounded-xl sm:rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2 shadow-[0_4px_0_#522810] min-w-0 max-w-[54vw] sm:max-w-none"
+          className="pointer-events-auto flex items-center gap-2 sm:gap-3 bg-[#FFF6DF] border-[3px] border-[#522810] rounded-xl sm:rounded-2xl px-2.5 py-1.5 sm:px-4 sm:py-2 shadow-[0_4px_0_#522810] min-w-0 max-w-[44vw] sm:max-w-none"
           aria-label={`Hole ${levelNumber} of ${totalLevels}, ${level.name}, Par ${level.par}`}
         >
           {/* Code-authored flag SVG icon */}
@@ -73,26 +91,42 @@ export function GameHud({
                 · {level.name}
               </span>
             </div>
-            <div className={`text-[11px] sm:text-xs font-bold tabular-nums truncate ${worldLabelColor}`}>
-              {world.name} · Par {level.par}
+            <div className={`text-[11px] sm:text-xs font-bold tabular-nums whitespace-nowrap ${worldLabelColor}`}>
+              <span className="hidden sm:inline">{world.name} · </span>Par {level.par}
             </div>
           </div>
         </div>
 
-        {/* Top-Right: Strokes Readout + Mobile-Comfortable Square Icon Buttons */}
+        {/* Top-Right: Strokes Used / Max / Remaining + Square Icon Buttons */}
         <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Prominent Strokes Counter */}
+          {/* Prominent Stroke Limit & Remaining Indicator */}
           <div
             data-testid="strokes-counter"
-            aria-label={`Strokes ${strokes}`}
-            className="min-h-[44px] flex items-center gap-1.5 sm:gap-2 bg-[#FFF6DF] border-[3px] border-[#522810] rounded-xl sm:rounded-2xl px-2.5 sm:px-4 py-1 shadow-[0_4px_0_#522810]"
+            data-remaining={String(remaining)}
+            aria-label={`Strokes ${strokes} of ${maxStrokes}, ${remaining} remaining`}
+            className={`min-h-[44px] flex items-center gap-2 sm:gap-2.5 border-[3px] rounded-xl sm:rounded-2xl px-2.5 sm:px-3.5 py-1 transition-colors duration-200 ${strokesCardClass}`}
           >
-            <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-[#8A4B20]">
-              Strokes
-            </span>
-            <span className="font-display text-xl sm:text-[26px] font-bold leading-none text-[#3B1D0E] tabular-nums min-w-[1.2ch] text-center">
-              {strokes}
-            </span>
+            <div className="leading-tight text-right">
+              <div className="flex items-baseline justify-end gap-1">
+                <span className="hidden sm:inline text-[10px] font-extrabold uppercase tracking-wider text-[#8A4B20]">
+                  Strokes
+                </span>
+                <span className="font-display text-lg sm:text-[22px] font-bold leading-none text-[#3B1D0E] tabular-nums">
+                  {strokes}
+                  <span className="text-xs sm:text-sm font-bold text-[#8A4B20]">/{maxStrokes}</span>
+                </span>
+              </div>
+              <div
+                data-testid="remaining-strokes"
+                className={`text-[10px] sm:text-[11px] font-extrabold leading-tight tabular-nums whitespace-nowrap ${remainingTextClass}`}
+              >
+                {isExhausted
+                  ? '0 left'
+                  : isFinalShot
+                  ? '1 left · Last Shot!'
+                  : `${remaining} left`}
+              </div>
+            </div>
           </div>
 
           {/* Restart Button [R] */}

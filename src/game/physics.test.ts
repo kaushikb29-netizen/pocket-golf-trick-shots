@@ -140,9 +140,15 @@ test('predictAimPath generates trajectory points and scoring labels match golf r
   assert.ok(pts.length >= 6, 'aim prediction should return multiple guide points');
 
   assert.equal(getScoreLabel(1, 2).title, 'HOLE IN ONE!');
+  assert.equal(getScoreLabel(1, 2).stars, 3);
   assert.equal(getScoreLabel(2, 3).title, 'BIRDIE!');
+  assert.equal(getScoreLabel(2, 3).stars, 3);
   assert.equal(getScoreLabel(3, 3).title, 'NICE PAR!');
+  assert.equal(getScoreLabel(3, 3).stars, 3);
   assert.equal(getScoreLabel(4, 3).title, 'BOGEY');
+  assert.equal(getScoreLabel(4, 3).stars, 2);
+  assert.equal(getScoreLabel(6, 3).title, 'LAST CHANCE SAVE!');
+  assert.equal(getScoreLabel(6, 3).stars, 1);
   assert.equal(formatParDelta(8, 8), 'Even Par');
   assert.equal(formatParDelta(6, 8), '-2 Under Par');
   assert.equal(formatParDelta(10, 8), '+2 Over Par');

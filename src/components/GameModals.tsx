@@ -11,6 +11,7 @@ interface PauseModalProps {
   onResume: () => void;
   onRestart: () => void;
   onSelectCourse: () => void;
+  onOpenSettings: () => void;
   onTitle: () => void;
 }
 
@@ -20,6 +21,7 @@ export function PauseModal({
   onResume,
   onRestart,
   onSelectCourse,
+  onOpenSettings,
   onTitle,
 }: PauseModalProps) {
   return (
@@ -38,7 +40,7 @@ export function PauseModal({
           Paused
         </h2>
 
-        <div className="mt-6 flex flex-col gap-2.5">
+        <div className="mt-5 flex flex-col gap-2.5">
           <button
             type="button"
             onClick={() => {
@@ -67,7 +69,17 @@ export function PauseModal({
             }}
             className="min-h-[46px] w-full font-display text-lg font-bold text-[#3B1D0E] bg-[#FFF2CC] hover:bg-[#FCE6A6] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
-            Select Course
+            Select Hole
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              golfAudio.playButtonClick();
+              onOpenSettings();
+            }}
+            className="min-h-[46px] w-full font-display text-lg font-bold text-[#3B1D0E] bg-[#FDE68A] hover:bg-[#FCD34D] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+          >
+            Settings
           </button>
           <button
             type="button"
@@ -80,6 +92,268 @@ export function PauseModal({
             Main Menu
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+interface OutOfStrokesModalProps {
+  levelNumber: number;
+  levelName: string;
+  strokes: number;
+  maxStrokes: number;
+  par: number;
+  onRetry: () => void;
+  onTitle: () => void;
+}
+
+export function OutOfStrokesModal({
+  levelNumber,
+  levelName,
+  strokes,
+  maxStrokes,
+  par,
+  onRetry,
+  onTitle,
+}: OutOfStrokesModalProps) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="out-of-strokes-title"
+      className="fixed inset-0 z-30 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(11, 52, 64, 0.68)' }}
+    >
+      <div className="animate-modal-pop w-full max-w-sm bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-6 shadow-[0_10px_0_#522810] text-center">
+        <p className="text-xs font-extrabold uppercase tracking-wider text-[#8A4B20]">
+          Hole {levelNumber} · {levelName}
+        </p>
+
+        <div className="mt-3 inline-block px-5 py-1.5 rounded-2xl border-[3px] border-[#522810] shadow-[0_3px_0_#522810] bg-[#DC2626]">
+          <h2
+            id="out-of-strokes-title"
+            className="font-display text-2xl sm:text-3xl font-bold text-[#FFFDF5] tracking-wide"
+          >
+            OUT OF STROKES!
+          </h2>
+        </div>
+
+        <p className="mt-2.5 text-sm font-bold text-[#6E3D1B]">
+          You used all {maxStrokes} strokes before reaching the cup.
+        </p>
+
+        {/* 0 Stars Earned */}
+        <div
+          className="mt-3 flex items-center justify-center gap-2"
+          aria-label="0 out of 3 stars"
+        >
+          <StarSvg filled={false} />
+          <StarSvg filled={false} />
+          <StarSvg filled={false} />
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 border-t-2 border-[#E6D3AB] pt-4">
+          <div>
+            <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#8A4B20]">
+              Strokes Used
+            </div>
+            <div className="font-display text-3xl font-bold text-[#B91C1C] tabular-nums">
+              {strokes}/{maxStrokes}
+            </div>
+          </div>
+          <div>
+            <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#8A4B20]">
+              Par
+            </div>
+            <div className="font-display text-3xl font-bold text-[#247A3C] tabular-nums">
+              {par}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 flex flex-col gap-2.5">
+          <button
+            type="button"
+            data-start="true"
+            data-testid="retry-hole-btn"
+            onClick={() => {
+              golfAudio.playCardSelect();
+              onRetry();
+            }}
+            className="min-h-[50px] w-full font-display text-xl font-bold text-[#FFFDF5] bg-[#FF595E] hover:bg-[#FF4248] hover:-translate-y-0.5 active:translate-y-0.5 py-3 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+          >
+            Retry Hole
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              golfAudio.playButtonClick();
+              onTitle();
+            }}
+            className="min-h-[46px] w-full font-display text-base font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+          >
+            Main Menu
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface SettingsModalProps {
+  soundEnabled: boolean;
+  musicEnabled: boolean;
+  completedHoles: number;
+  earnedStars: number;
+  onToggleSound: () => void;
+  onToggleMusic: () => void;
+  onResetProgress: () => void;
+  onClose: () => void;
+}
+
+export function SettingsModal({
+  soundEnabled,
+  musicEnabled,
+  completedHoles,
+  earnedStars,
+  onToggleSound,
+  onToggleMusic,
+  onResetProgress,
+  onClose,
+}: SettingsModalProps) {
+  const [confirmingReset, setConfirmingReset] = useState(false);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-title"
+      className="fixed inset-0 z-30 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(11, 52, 64, 0.72)' }}
+    >
+      <div className="animate-modal-pop w-full max-w-sm bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-6 shadow-[0_10px_0_#522810] text-center">
+        <h2 id="settings-title" className="font-display text-3xl font-bold text-[#3B1D0E]">
+          Settings
+        </h2>
+        <p className="mt-1 text-xs font-bold text-[#7C4B27]">
+          Preferences &amp; saved progress are stored automatically in your browser.
+        </p>
+
+        <div className="mt-5 flex flex-col gap-3 text-left">
+          {/* Sound Effects Toggle */}
+          <div className="flex items-center justify-between gap-3 rounded-2xl border-[3px] border-[#522810] bg-[#FFFDF7] px-4 py-3">
+            <div>
+              <div className="font-display text-base font-bold text-[#3B1D0E]">
+                Sound Effects
+              </div>
+              <div className="text-[11px] font-semibold text-[#7C4B27]">
+                Putts, bounces &amp; celebrations
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={soundEnabled}
+              data-testid="toggle-sound-btn"
+              onClick={onToggleSound}
+              className={`min-h-[40px] min-w-[74px] px-3.5 rounded-xl border-[3px] border-[#522810] font-display text-sm font-bold shadow-[0_3px_0_#522810] active:translate-y-0.5 cursor-pointer transition-colors ${
+                soundEnabled
+                  ? 'bg-[#2FA752] text-[#FFFDF5]'
+                  : 'bg-[#E5D7B8] text-[#5C3A1E]'
+              }`}
+            >
+              {soundEnabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {/* Background Music Toggle */}
+          <div className="flex items-center justify-between gap-3 rounded-2xl border-[3px] border-[#522810] bg-[#FFFDF7] px-4 py-3">
+            <div>
+              <div className="font-display text-base font-bold text-[#3B1D0E]">
+                Music
+              </div>
+              <div className="text-[11px] font-semibold text-[#7C4B27]">
+                Gentle arcade resort groove
+              </div>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={musicEnabled}
+              data-testid="toggle-music-btn"
+              onClick={onToggleMusic}
+              className={`min-h-[40px] min-w-[74px] px-3.5 rounded-xl border-[3px] border-[#522810] font-display text-sm font-bold shadow-[0_3px_0_#522810] active:translate-y-0.5 cursor-pointer transition-colors ${
+                musicEnabled
+                  ? 'bg-[#0EA5B7] text-[#FFFDF5]'
+                  : 'bg-[#E5D7B8] text-[#5C3A1E]'
+              }`}
+            >
+              {musicEnabled ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {/* Reset Progress with Two-Step Confirmation */}
+          <div className="rounded-2xl border-[3px] border-[#D7C29E] bg-[#FAF0D7] p-3.5 text-center">
+            <div className="text-xs font-extrabold text-[#6E3D1B] tabular-nums">
+              Saved Progress: {completedHoles}/16 Holes · ★ {earnedStars} Stars
+            </div>
+
+            {!confirmingReset ? (
+              <button
+                type="button"
+                data-testid="reset-progress-btn"
+                onClick={() => {
+                  golfAudio.playButtonClick();
+                  setConfirmingReset(true);
+                }}
+                className="mt-2.5 min-h-[42px] w-full font-display text-base font-bold text-[#B91C1C] bg-[#FEE2E2] hover:bg-[#FECACA] active:translate-y-0.5 rounded-xl border-[2.5px] border-[#B91C1C] cursor-pointer transition-colors"
+              >
+                Reset Progress
+              </button>
+            ) : (
+              <div className="mt-2.5 space-y-2">
+                <p className="text-xs font-extrabold text-[#B91C1C]">
+                  Erase all stars, best scores &amp; unlocked holes?
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    data-testid="confirm-reset-btn"
+                    onClick={() => {
+                      golfAudio.playButtonClick();
+                      onResetProgress();
+                      setConfirmingReset(false);
+                    }}
+                    className="min-h-[42px] font-display text-sm font-bold text-[#FFFDF5] bg-[#DC2626] hover:bg-[#B91C1C] rounded-xl border-[2.5px] border-[#522810] shadow-[0_3px_0_#522810] active:translate-y-0.5 cursor-pointer"
+                  >
+                    Yes, Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      golfAudio.playButtonClick();
+                      setConfirmingReset(false);
+                    }}
+                    className="min-h-[42px] font-display text-sm font-bold text-[#3B1D0E] bg-[#FFF8E7] hover:bg-[#F5E6C4] rounded-xl border-[2.5px] border-[#522810] shadow-[0_3px_0_#522810] active:translate-y-0.5 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            golfAudio.playButtonClick();
+            onClose();
+          }}
+          className="mt-5 min-h-[46px] w-full font-display text-lg font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer"
+        >
+          Done
+        </button>
       </div>
     </div>
   );
@@ -149,15 +423,16 @@ export function LevelClearModal({
   onReplayHole,
 }: LevelClearModalProps) {
   const info = getScoreLabel(strokes, par);
-  const isSpecialScore = strokes === 1 || strokes <= par - 1;
-  const bannerColor =
-    info.tone === 'gold'
-      ? '#F59E0B'
-      : info.tone === 'emerald'
-      ? '#2FA752'
-      : info.tone === 'sky'
-      ? '#0EA5E9'
-      : '#FF6B4A';
+  const isSpecialScore = strokes === 1 || strokes <= par - 1 || Boolean(info.isLastChance);
+  const bannerColor = info.isLastChance
+    ? '#EA580C'
+    : info.tone === 'gold'
+    ? '#F59E0B'
+    : info.tone === 'emerald'
+    ? '#2FA752'
+    : info.tone === 'sky'
+    ? '#0EA5E9'
+    : '#FF6B4A';
 
   return (
     <div
@@ -172,7 +447,7 @@ export function LevelClearModal({
           Hole {levelNumber} Cleared · {levelName}
         </p>
 
-        {/* Celebratory Score Banner with tasteful sparkles for Birdie / Eagle / Hole in One */}
+        {/* Celebratory Score Banner with sparkles for Hole in One / Eagle / Birdie / Last Chance Save */}
         <div className="mt-3 flex items-center justify-center gap-2">
           {isSpecialScore && (
             <SparkleAccent
@@ -181,14 +456,14 @@ export function LevelClearModal({
             />
           )}
           <div
-            className={`inline-block px-5 py-1.5 rounded-2xl border-[3px] border-[#522810] shadow-[0_3px_0_#522810] ${
+            className={`inline-block px-4 py-1.5 rounded-2xl border-[3px] border-[#522810] shadow-[0_3px_0_#522810] ${
               isSpecialScore ? 'animate-banner-pulse' : ''
             }`}
             style={{ backgroundColor: bannerColor }}
           >
             <h2
               id="level-clear-title"
-              className="font-display text-2xl sm:text-3xl font-bold text-[#FFFDF5] tracking-wide"
+              className="font-display text-lg sm:text-[22px] font-bold text-[#FFFDF5] tracking-wide whitespace-nowrap"
             >
               {info.title}
             </h2>

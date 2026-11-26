@@ -887,6 +887,37 @@ export function predictAimPath(
   return points;
 }
 
+/** Maximum strokes allowed per hole: Par + 3 */
+export function getMaxStrokes(par: number): number {
+  return Math.max(1, Math.round(par)) + 3;
+}
+
+/**
+ * Three-star rating rules:
+ * - 3 stars: Finish at or below par
+ * - 2 stars: Finish at par + 1
+ * - 1 star:  Finish at par + 2 or par + 3
+ * - 0 stars: Fail to complete the hole (or exceed Par + 3)
+ */
+export function calculateStars(
+  strokes: number,
+  par: number,
+  completed = true
+): 0 | 1 | 2 | 3 {
+  if (!completed) return 0;
+  const maxStrokes = getMaxStrokes(par);
+  if (strokes < 1 || strokes > maxStrokes) return 0;
+  const diff = strokes - par;
+  if (diff <= 0) return 3;
+  if (diff === 1) return 2;
+  return 1;
+}
+
+/** True when the player sinks the ball using the very last available stroke (Par + 3) */
+export function isLastChanceSave(strokes: number, par: number): boolean {
+  return strokes > 1 && strokes === getMaxStrokes(par);
+}
+
 export function getScoreLabel(strokes: number, par: number): ScoreLabelInfo {
   if (strokes === 1) {
     return {
@@ -917,7 +948,7 @@ export function getScoreLabel(strokes: number, par: number): ScoreLabelInfo {
     return {
       title: 'NICE PAR!',
       detail: 'Right on target',
-      stars: 2,
+      stars: 3,
       tone: 'sky',
     };
   }
@@ -927,6 +958,15 @@ export function getScoreLabel(strokes: number, par: number): ScoreLabelInfo {
       detail: '+1 over par',
       stars: 2,
       tone: 'coral',
+    };
+  }
+  if (isLastChanceSave(strokes, par)) {
+    return {
+      title: 'LAST CHANCE SAVE!',
+      detail: 'Clutch finish on the final stroke!',
+      stars: 1,
+      tone: 'gold',
+      isLastChance: true,
     };
   }
   return {

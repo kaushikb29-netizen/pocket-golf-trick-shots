@@ -6,6 +6,7 @@ import {
   computeShotFromDrag,
   createInitialSimState,
   getScoreLabel,
+  isLastChanceSave,
   launchBall,
   stepSimulation,
 } from '../game/physics';
@@ -28,14 +29,17 @@ interface GolfCanvasProps {
   levelIndex: number;
   phase: GamePhase;
   strokes: number;
+  maxStrokes: number;
   onStroke: () => void;
   onWaterPenalty: () => void;
   onHoleSunk: () => void;
+  onOutOfStrokes: () => void;
 }
 
 function resolveCelebrationTier(strokes: number, par: number): CelebrationTier {
   const safe = Math.max(1, strokes);
   if (safe === 1) return 'hole_in_one';
+  if (isLastChanceSave(safe, par)) return 'last_chance';
   const diff = safe - par;
   if (diff <= -2) return 'eagle';
   if (diff === -1) return 'birdie';
@@ -44,14 +48,28 @@ function resolveCelebrationTier(strokes: number, par: number): CelebrationTier {
 }
 
 export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
-  function GolfCanvas({ levelIndex, phase, strokes, onStroke, onWaterPenalty, onHoleSunk }, ref) {
+  function GolfCanvas(
+    {
+      levelIndex,
+      phase,
+      strokes,
+      maxStrokes,
+      onStroke,
+      onWaterPenalty,
+      onHoleSunk,
+      onOutOfStrokes,
+    },
+    ref
+  ) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const levelIndexRef = useRef(levelIndex);
     const phaseRef = useRef<GamePhase>(phase);
     const strokesRef = useRef(strokes);
+    const maxStrokesRef = useRef(maxStrokes);
     const onStrokeRef = useRef(onStroke);
     const onWaterPenaltyRef = useRef(onWaterPenalty);
     const onHoleSunkRef = useRef(onHoleSunk);
+    const onOutOfStrokesRef = useRef(onOutOfStrokes);
 
     const simRef = useRef<SimState>(createInitialSimState(LEVELS[levelIndex]));
     const particlesRef = useRef<ParticlePool>(new ParticlePool());
@@ -71,13 +89,17 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
     const traumaRef = useRef(0);
     const sinkNotifiedRef = useRef(false);
     const sinkDelayTimerRef = useRef(0);
+    const outOfStrokesNotifiedRef = useRef(false);
+    const outOfStrokesTimerRef = useRef(0);
     const splashCalloutRef = useRef<SplashCallout | null>(null);
 
     onStrokeRef.current = onStroke;
     onWaterPenaltyRef.current = onWaterPenalty;
     onHoleSunkRef.current = onHoleSunk;
+    onOutOfStrokesRef.current = onOutOfStrokes;
     phaseRef.current = phase;
     strokesRef.current = strokes;
+    maxStrokesRef.current = maxStrokes;
 
     const syncCanvasDataAttributes = () => {
       const canvas = canvasRef.current;
@@ -106,6 +128,8 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
       traumaRef.current = 0;
       sinkNotifiedRef.current = false;
       sinkDelayTimerRef.current = 0;
+      outOfStrokesNotifiedRef.current = false;
+      outOfStrokesTimerRef.current = 0;
       splashCalloutRef.current = null;
       syncCanvasDataAttributes();
     };
@@ -188,6 +212,7 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
         if (e.button !== 0 && e.pointerType === 'mouse') return;
         const sim = simRef.current;
         if (sim.ball.isMoving || sim.ball.holed) return;
+        if (strokesRef.current >= maxStrokesRef.current || outOfStrokesNotifiedRef.current) return;
         if (activePointerIdRef.current !== null) return;
 
         if (e.pointerType !== 'mouse') {
@@ -241,6 +266,7 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
         }
 
         if (phaseRef.current !== 'playing') return;
+        if (strokesRef.current >= maxStrokesRef.current || outOfStrokesNotifiedRef.current) return;
         const sim = simRef.current;
         const level = LEVELS[levelIndexRef.current];
         if (shot.valid && !sim.ball.isMoving && !sim.ball.holed) {
@@ -255,6 +281,7 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
             level.theme
           );
           strokesRef.current += 1;
+          outOfStrokesTimerRef.current = 0;
           syncCanvasDataAttributes();
           onStrokeRef.current();
         }
@@ -281,7 +308,12 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
         const sim = simRef.current;
         const currentPhase = phaseRef.current;
 
-        if (currentPhase === 'paused' || currentPhase === 'course_select') {
+        if (
+          currentPhase === 'paused' ||
+          currentPhase === 'course_select' ||
+          currentPhase === 'settings' ||
+          currentPhase === 'out_of_strokes'
+        ) {
           const overlayKey = `${currentPhase}:${level.id}:${Math.round(transformRef.current.width)}:${Math.round(transformRef.current.height)}`;
           if (staticOverlayRenderedKey !== overlayKey) {
             staticOverlayRenderedKey = overlayKey;
@@ -372,21 +404,28 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
               const tier = resolveCelebrationTier(currentStrokes, level.par);
               const scoreInfo = getScoreLabel(currentStrokes, level.par);
               golfAudio.playCupSink(tier);
-              particlesRef.current.emitHoleCelebration(ev.x, ev.y, tier);
+              const particleTier = tier === 'last_chance' ? 'eagle' : tier;
+              particlesRef.current.emitHoleCelebration(ev.x, ev.y, particleTier);
               traumaRef.current = Math.min(
                 1,
-                traumaRef.current + (tier === 'hole_in_one' ? 0.42 : 0.26)
+                traumaRef.current +
+                  (tier === 'hole_in_one' || tier === 'last_chance' ? 0.42 : 0.26)
               );
-              if (tier === 'hole_in_one' || tier === 'eagle' || tier === 'birdie') {
+              if (
+                tier === 'hole_in_one' ||
+                tier === 'eagle' ||
+                tier === 'birdie' ||
+                tier === 'last_chance'
+              ) {
                 splashCalloutRef.current = {
                   x: ev.x,
                   y: ev.y - 6,
-                  life: 1.25,
-                  maxLife: 1.25,
+                  life: 1.35,
+                  maxLife: 1.35,
                   text: scoreInfo.title,
                   fillColor: tier === 'birdie' ? '#A7F3D0' : '#FDE047',
                   strokeColor: '#3B1D0E',
-                  scale: tier === 'hole_in_one' ? 1.32 : 1.18,
+                  scale: tier === 'hole_in_one' || tier === 'last_chance' ? 1.32 : 1.18,
                 };
               }
               syncCanvasDataAttributes();
@@ -406,6 +445,22 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
               sinkNotifiedRef.current = true;
               onHoleSunkRef.current();
             }
+          } else if (
+            !sim.ball.holed &&
+            !sim.ball.isMoving &&
+            !outOfStrokesNotifiedRef.current &&
+            currentPhase === 'playing' &&
+            strokesRef.current >= maxStrokesRef.current
+          ) {
+            // Final stroke finished moving without entering the hole -> trigger Out of Strokes
+            outOfStrokesTimerRef.current += dt;
+            if (outOfStrokesTimerRef.current >= 0.42) {
+              outOfStrokesNotifiedRef.current = true;
+              golfAudio.playOutOfStrokes();
+              onOutOfStrokesRef.current();
+            }
+          } else {
+            outOfStrokesTimerRef.current = 0;
           }
 
           const speed = Math.hypot(sim.ball.vx, sim.ball.vy);
