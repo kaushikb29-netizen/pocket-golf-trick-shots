@@ -1693,6 +1693,15 @@ export const LEVELS: LevelDefinition[] = [
         kind: 'wood',
       },
       {
+        id: 'l14-chute-guard',
+        x: 786,
+        y: 318,
+        w: 38,
+        h: 64,
+        angle: 0,
+        kind: 'frost-stone',
+      },
+      {
         id: 'l14-wood-br',
         x: 766,
         y: 404,

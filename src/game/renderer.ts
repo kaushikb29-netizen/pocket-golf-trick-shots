@@ -297,9 +297,66 @@ function drawGardenIsland(
       ctx.quadraticCurveTo(rx + rw * 0.86, y + 14, rx + rw, y - 4);
       ctx.stroke();
     }
+
+    // Winding decorative frozen river meandering across the snowy resort plateau
+    ctx.save();
+    const traceRiverPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(rx - 18, ry + rh * 0.19);
+      ctx.bezierCurveTo(
+        rx + rw * 0.24,
+        ry + rh * 0.06,
+        rx + rw * 0.34,
+        ry + rh * 0.42,
+        rx + rw * 0.52,
+        ry + rh * 0.54
+      );
+      ctx.bezierCurveTo(
+        rx + rw * 0.68,
+        ry + rh * 0.65,
+        rx + rw * 0.78,
+        ry + rh * 0.96,
+        rx + rw + 18,
+        ry + rh * 0.83
+      );
+    };
+
+    // Outer powdery snowbank bevel along the frozen river
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    traceRiverPath();
+    ctx.strokeStyle = 'rgba(125, 195, 240, 0.48)';
+    ctx.lineWidth = 48;
+    ctx.stroke();
+
+    // Main crystalline frozen river ice channel
+    const riverGrad = ctx.createLinearGradient(rx, ry, rx + rw, ry + rh);
+    riverGrad.addColorStop(0, '#BAE6FD');
+    riverGrad.addColorStop(0.45, '#7DD3FC');
+    riverGrad.addColorStop(1, '#38BDF8');
+    traceRiverPath();
+    ctx.strokeStyle = riverGrad;
+    ctx.lineWidth = 36;
+    ctx.stroke();
+
+    // Inner bright glacier sheen highlight along the river center
+    traceRiverPath();
+    ctx.strokeStyle = 'rgba(240, 249, 255, 0.55)';
+    ctx.lineWidth = 10;
+    ctx.stroke();
+
+    // Subtle crisp frozen river edge cracks & icy glint dashes
+    traceRiverPath();
+    ctx.setLineDash([18, 28]);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
     // Delicate snow sparkle dots across the snowbanks
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    for (let i = 0; i < 24; i++) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+    for (let i = 0; i < 26; i++) {
       const sx = rx + ((i * 97 + 41) % (rw - 24)) + 12;
       const sy = ry + ((i * 61 + 29) % (rh - 24)) + 12;
       ctx.beginPath();
