@@ -2,8 +2,10 @@ import { useState } from 'react';
 import type { GithubUser } from '../hooks/useGithubAuth';
 import { golfAudio } from '../game/audio';
 import { LEVELS } from '../game/levels';
-import { formatParDelta, getScoreLabel } from '../game/physics';
+import { calculateStars, formatParDelta, getScoreLabel } from '../game/physics';
+import type { HoleProgressRecord, OverallProgressStats } from '../game/progression';
 import type { ScorecardEntry } from '../server/githubHelpers';
+import { ConfettiOverlay } from './WorldCompleteModal';
 
 interface PauseModalProps {
   levelNumber: number;
@@ -366,6 +368,8 @@ interface LevelClearModalProps {
   par: number;
   bestStrokes: number | null;
   isNewBest: boolean;
+  isWorldFinale?: boolean;
+  isFinalHole?: boolean;
   onNextHole: () => void;
   onReplayHole: () => void;
 }
@@ -419,6 +423,8 @@ export function LevelClearModal({
   par,
   bestStrokes,
   isNewBest,
+  isWorldFinale = false,
+  isFinalHole = false,
   onNextHole,
   onReplayHole,
 }: LevelClearModalProps) {
@@ -434,6 +440,12 @@ export function LevelClearModal({
     ? '#0EA5E9'
     : '#FF6B4A';
 
+  const continueLabel = isFinalHole
+    ? 'Championship Results →'
+    : isWorldFinale
+    ? 'World Results →'
+    : 'Next Hole';
+
   return (
     <div
       role="dialog"
@@ -445,7 +457,6 @@ export function LevelClearModal({
       <div className="animate-modal-pop w-full max-w-sm bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-6 shadow-[0_10px_0_#522810] text-center">
         <p className="text-xs font-extrabold uppercase tracking-wider text-[#8A4B20]">
           Hole {levelNumber} Cleared · {levelName}
-          {levelNumber === 20 ? ' · World 5 Complete!' : ''}
         </p>
 
         {/* Celebratory Score Banner with sparkles for Hole in One / Eagle / Birdie / Last Chance Save */}
@@ -521,13 +532,14 @@ export function LevelClearModal({
           <button
             type="button"
             data-start="true"
+            data-testid="level-clear-continue-btn"
             onClick={() => {
               golfAudio.playCardSelect();
               onNextHole();
             }}
             className="min-h-[50px] w-full font-display text-xl font-bold text-[#FFFDF5] bg-[#2FA752] hover:bg-[#269145] hover:-translate-y-0.5 active:translate-y-0.5 py-3 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
-            Next Hole
+            {continueLabel}
           </button>
           <button
             type="button"
@@ -547,12 +559,8 @@ export function LevelClearModal({
 
 interface VictoryModalProps {
   holeStrokes: number[];
-  lastHoleStrokes: number;
-  lastHolePar: number;
-  worldEarnedStars: number;
-  worldMaxStars: number;
-  totalEarnedStars: number;
-  totalMaxStars: number;
+  savedHoles: Record<number, HoleProgressRecord>;
+  overallProgress: OverallProgressStats;
   bestTotal: number | null;
   githubUser: GithubUser | null;
   githubConnecting: boolean;
@@ -560,19 +568,15 @@ interface VictoryModalProps {
   githubCallbackUrlHint: string | null;
   onConnectGithub: () => void;
   onShareScorecard: (holes: ScorecardEntry[]) => Promise<string>;
-  onPlayAgain: () => void;
-  onSelectCourse: () => void;
+  onSelectWorld: () => void;
+  onReplayAnyHole: () => void;
   onTitle: () => void;
 }
 
 export function VictoryModal({
   holeStrokes,
-  lastHoleStrokes,
-  lastHolePar,
-  worldEarnedStars,
-  worldMaxStars,
-  totalEarnedStars,
-  totalMaxStars,
+  savedHoles,
+  overallProgress,
   bestTotal,
   githubUser,
   githubConnecting,
@@ -580,43 +584,65 @@ export function VictoryModal({
   githubCallbackUrlHint,
   onConnectGithub,
   onShareScorecard,
-  onPlayAgain,
-  onSelectCourse,
+  onSelectWorld,
+  onReplayAnyHole,
   onTitle,
 }: VictoryModalProps) {
   const [savingGist, setSavingGist] = useState(false);
   const [gistUrl, setGistUrl] = useState<string | null>(null);
   const [gistError, setGistError] = useState<string | null>(null);
 
-  const totalPar = LEVELS.reduce((acc, lvl) => acc + lvl.par, 0);
-  const playedCount = holeStrokes.filter((s) => s > 0).length;
-  const totalStrokes = holeStrokes.reduce((acc, s) => acc + s, 0);
-  const playedPar = LEVELS.reduce(
-    (acc, lvl, idx) => acc + ((holeStrokes[idx] ?? 0) > 0 ? lvl.par : 0),
-    0
-  );
-  const isFullRun = playedCount === LEVELS.length;
-  const effectivePar = isFullRun ? totalPar : Math.max(1, playedPar);
-  const effectiveStrokes = totalStrokes > 0 ? totalStrokes : Math.max(1, lastHoleStrokes);
-  const deltaText = formatParDelta(effectiveStrokes, effectivePar);
-  const diff = effectiveStrokes - effectivePar;
-  const finalHoleScore = Math.max(1, holeStrokes[LEVELS.length - 1] || lastHoleStrokes || lastHolePar);
-  const finalHoleInfo = getScoreLabel(finalHoleScore, lastHolePar);
-  const performanceLabel =
-    diff <= -6
-      ? 'Legendary Trick-Shot Grandmaster'
+  // Merge saved personal bests with current session scores so the championship summary always reflects full progress
+  const mergedScores = LEVELS.map((lvl, idx) => {
+    const saved = savedHoles[lvl.id]?.bestStrokes ?? 0;
+    const session = holeStrokes[idx] ?? 0;
+    if (saved > 0 && session > 0) return Math.min(saved, session);
+    return saved || session;
+  });
+
+  const mergedCompletedCount = mergedScores.filter((s) => s > 0).length;
+  const totalCompletedHoles = Math.max(overallProgress.completedHoles, mergedCompletedCount);
+  const totalAccumulatedStrokes =
+    overallProgress.totalBestStrokes > 0
+      ? overallProgress.totalBestStrokes
+      : mergedScores.reduce((acc, s) => acc + s, 0);
+  const referencePar =
+    overallProgress.completedPar > 0
+      ? overallProgress.completedPar
+      : LEVELS.reduce((acc, lvl, idx) => acc + (mergedScores[idx] > 0 ? lvl.par : 0), 0);
+
+  const deltaText =
+    totalAccumulatedStrokes > 0 && referencePar > 0
+      ? formatParDelta(totalAccumulatedStrokes, referencePar)
+      : 'Tour Clear';
+  const diff = totalAccumulatedStrokes - referencePar;
+  const performanceRank =
+    totalAccumulatedStrokes <= 0
+      ? 'Grand Champion'
+      : diff <= -6
+      ? 'Grandmaster'
       : diff <= 0
-      ? 'Pocket Golf Grand Champion'
+      ? 'Pro Champion'
       : diff <= 8
-      ? 'Clockwork Carnival Champion'
-      : `${LEVELS.length}-Hole Tour Finisher`;
-  const displayStars: 1 | 2 | 3 = isFullRun
-    ? diff <= 0
+      ? 'Gold Finisher'
+      : 'Tour Finisher';
+
+  const totalDisplayedStars = LEVELS.reduce((acc, lvl, idx) => {
+    const savedStars = savedHoles[lvl.id]?.stars ?? 0;
+    const sessionScore = holeStrokes[idx] ?? 0;
+    const sessionStars =
+      sessionScore > 0 ? Math.max(1, calculateStars(sessionScore, lvl.par, true)) : 0;
+    return acc + Math.max(savedStars, sessionStars);
+  }, 0);
+
+  const starRatio =
+    overallProgress.maxStars > 0 ? totalDisplayedStars / overallProgress.maxStars : 0;
+  const displayStars: 1 | 2 | 3 =
+    starRatio >= 0.8 || (totalAccumulatedStrokes > 0 && diff <= 0)
       ? 3
-      : diff <= 8
+      : starRatio >= 0.5 || (totalAccumulatedStrokes > 0 && diff <= 8)
       ? 2
-      : 1
-    : finalHoleInfo.stars;
+      : 1;
 
   const firstHalf = LEVELS.slice(0, Math.ceil(LEVELS.length / 2));
   const secondHalf = LEVELS.slice(Math.ceil(LEVELS.length / 2));
@@ -630,7 +656,7 @@ export function VictoryModal({
         id: lvl.id,
         name: lvl.name,
         par: lvl.par,
-        strokes: holeStrokes[idx] ?? 0,
+        strokes: mergedScores[idx] ?? 0,
       }));
       const url = await onShareScorecard(entries);
       setGistUrl(url);
@@ -646,15 +672,17 @@ export function VictoryModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="victory-title"
+      data-testid="championship-modal"
       className="fixed inset-0 z-30 flex items-center justify-center p-2 sm:p-3.5"
-      style={{ backgroundColor: 'rgba(28, 20, 48, 0.78)' }}
+      style={{ backgroundColor: 'rgba(28, 20, 48, 0.8)' }}
     >
-      <div className="animate-modal-pop w-full max-w-2xl max-h-[94dvh] overflow-y-auto touch-pan-y overscroll-contain bg-[#FFFBEB] border-[4px] border-[#78350F] rounded-3xl p-3.5 sm:p-5 shadow-[0_10px_0_#78350F] text-center">
-        {/* Special Final Championship Celebration Header */}
+      <ConfettiOverlay />
+
+      <div className="relative z-10 animate-modal-pop w-full max-w-2xl max-h-[94dvh] overflow-y-auto touch-pan-y overscroll-contain bg-[#FFFBEB] border-[4px] border-[#78350F] rounded-3xl p-3.5 sm:p-5 shadow-[0_10px_0_#78350F] text-center">
+        {/* Final Championship Celebration Header */}
         <div className="flex items-center justify-center gap-3">
           <div className="relative shrink-0">
             <svg viewBox="0 0 54 54" className="w-13 h-13 sm:w-14 sm:h-14" aria-hidden="true">
-              {/* Royal Crown floating above Championship Cup */}
               <path
                 d="M17 11 L20 4 L27 8.5 L34 4 L37 11 Z"
                 fill="#FACC15"
@@ -662,7 +690,6 @@ export function VictoryModal({
                 strokeWidth="2.2"
                 strokeLinejoin="round"
               />
-              {/* Golden Championship Trophy Cup */}
               <path
                 d="M13 14 H41 V24 C41 31.5 34.8 36.5 27 36.5 C19.2 36.5 13 31.5 13 24 Z"
                 fill="#F59E0B"
@@ -670,7 +697,6 @@ export function VictoryModal({
                 strokeWidth="3"
                 strokeLinejoin="round"
               />
-              {/* Trophy Handles */}
               <path
                 d="M13 17 H7 C7 24 10 27.5 14 27.5 M41 17 H47 C47 24 44 27.5 40 27.5"
                 fill="none"
@@ -678,7 +704,6 @@ export function VictoryModal({
                 strokeWidth="3"
                 strokeLinecap="round"
               />
-              {/* Championship Star Emblem */}
               <path
                 d="M27 18 L29.1 23 L34.4 23.5 L30.3 26.9 L31.6 32 L27 29.2 L22.4 32 L23.7 26.9 L19.6 23.5 L24.9 23 Z"
                 fill="#FEF08A"
@@ -686,7 +711,6 @@ export function VictoryModal({
                 strokeWidth="1.5"
                 strokeLinejoin="round"
               />
-              {/* Pedestal */}
               <rect x="23" y="36.5" width="8" height="7" fill="#D97706" stroke="#522810" strokeWidth="2.5" />
               <rect x="15.5" y="43" width="23" height="6" rx="2.5" fill="#92400E" stroke="#522810" strokeWidth="2.5" />
             </svg>
@@ -695,45 +719,53 @@ export function VictoryModal({
             <SparkleAccent className="animate-sparkle w-3.5 h-3.5 absolute -bottom-0.5 -right-1" color="#38BDF8" />
           </div>
           <div className="text-left">
-            <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#B45309]">
-              All 6 Worlds Conquered · {performanceLabel}
+            <div className="text-[11px] sm:text-xs font-extrabold uppercase tracking-wider text-[#B45309]">
+              ALL 6 WORLDS COMPLETED!
             </div>
             <h2
               id="victory-title"
-              className="mt-0.5 font-display text-lg sm:text-2xl font-bold text-[#78350F] leading-tight"
+              className="mt-0.5 font-display text-xl sm:text-2xl font-bold text-[#78350F] leading-tight"
             >
-              GRAND CHAMPIONSHIP COMPLETED!
+              POCKET GOLF CHAMPION!
             </h2>
           </div>
         </div>
 
-        {/* Championship Stat Strip: Strokes, Performance, Stars */}
-        <div className="mt-2 grid grid-cols-3 gap-2 rounded-2xl border-[3px] border-[#D97706] bg-[#FEF3C7] px-3 py-1.5">
+        {/* 4-Metric Championship Stat Strip */}
+        <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-2xl border-[3px] border-[#D97706] bg-[#FEF3C7] px-2.5 py-2">
           <div>
             <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#92400E]">
-              {isFullRun ? 'Total Strokes' : 'Hole 24 Strokes'}
+              Holes Cleared
             </div>
-            <div className="font-display text-xl sm:text-2xl font-bold text-[#3B1D0E] tabular-nums">
-              {isFullRun ? effectiveStrokes : finalHoleScore}
-            </div>
-          </div>
-          <div className="border-x-2 border-[#FDE68A]">
-            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#92400E]">
-              {isFullRun ? 'Performance' : `Par ${lastHolePar}`}
-            </div>
-            <div className="font-display text-sm sm:text-lg font-bold text-[#15803D] tabular-nums leading-tight mt-0.5">
-              {isFullRun ? deltaText : finalHoleInfo.title}
+            <div className="font-display text-lg sm:text-xl font-bold text-[#3B1D0E] tabular-nums">
+              {totalCompletedHoles}/{overallProgress.totalHoles}
             </div>
           </div>
-          <div>
+          <div className="sm:border-l-2 sm:border-[#FDE68A]">
             <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#92400E]">
-              Tour Stars
+              Best Strokes
             </div>
-            <div className="font-display text-xl sm:text-2xl font-bold text-[#B45309] tabular-nums leading-none mt-0.5">
-              ★ {totalEarnedStars}/{totalMaxStars}
+            <div className="font-display text-lg sm:text-xl font-bold text-[#3B1D0E] tabular-nums">
+              {totalAccumulatedStrokes > 0 ? totalAccumulatedStrokes : '—'}
             </div>
-            <div className="text-[10px] font-bold text-[#92400E] tabular-nums">
-              World 6: ★ {worldEarnedStars}/{worldMaxStars}
+          </div>
+          <div className="sm:border-l-2 sm:border-[#FDE68A]">
+            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#92400E]">
+              Total Stars
+            </div>
+            <div className="font-display text-lg sm:text-xl font-bold text-[#B45309] tabular-nums">
+              ★ {totalDisplayedStars}/{overallProgress.maxStars}
+            </div>
+          </div>
+          <div className="sm:border-l-2 sm:border-[#FDE68A]">
+            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#92400E]">
+              Performance
+            </div>
+            <div className="font-display text-sm sm:text-base font-bold text-[#15803D] leading-tight mt-0.5">
+              {performanceRank}
+            </div>
+            <div className="text-[10px] font-extrabold text-[#78350F] tabular-nums">
+              {deltaText}
             </div>
           </div>
         </div>
@@ -741,7 +773,7 @@ export function VictoryModal({
         {/* Staggered Championship Star Rating */}
         <div
           className="mt-1 flex items-center justify-center gap-1.5"
-          aria-label={`${displayStars} out of 3 stars`}
+          aria-label={`${displayStars} out of 3 championship stars`}
         >
           <StarSvg filled={displayStars >= 1} animClass="animate-star-pop-1" />
           <StarSvg filled={displayStars >= 2} animClass="animate-star-pop-2" />
@@ -760,13 +792,13 @@ export function VictoryModal({
                   <tr className="bg-[#F5E6C4] border-b-2 border-[#522810] text-[#522810]">
                     <th className="py-0.5 px-2 font-extrabold">Hole</th>
                     <th className="py-0.5 px-1.5 text-center font-extrabold">Par</th>
-                    <th className="py-0.5 px-2 text-right font-extrabold">Score</th>
+                    <th className="py-0.5 px-2 text-right font-extrabold">Best</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E9D9B6]">
                   {group.map((lvl) => {
                     const idx = lvl.id - 1;
-                    const s = holeStrokes[idx] ?? 0;
+                    const s = mergedScores[idx] ?? 0;
                     const hDiff = s - lvl.par;
                     const toneClass =
                       s === 0
@@ -811,7 +843,7 @@ export function VictoryModal({
         )}
 
         {/* Optional GitHub Scorecard Save / Connect Row */}
-        <div className="mt-2.5 flex flex-col items-center gap-1.5">
+        <div className="mt-2 flex flex-col items-center gap-1.5">
           {githubUser ? (
             gistUrl ? (
               <a
@@ -827,7 +859,7 @@ export function VictoryModal({
                 type="button"
                 disabled={savingGist}
                 onClick={handleSaveToGithub}
-                className="min-h-[40px] inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-[#FFFDF5] bg-[#24292F] hover:bg-[#32383F] disabled:opacity-70 px-4 py-2 rounded-xl border-[2.5px] border-[#522810] shadow-[0_3px_0_#522810] cursor-pointer"
+                className="min-h-[38px] inline-flex items-center gap-2 text-xs sm:text-sm font-bold text-[#FFFDF5] bg-[#24292F] hover:bg-[#32383F] disabled:opacity-70 px-4 py-1.5 rounded-xl border-[2.5px] border-[#522810] shadow-[0_3px_0_#522810] cursor-pointer"
               >
                 <span>
                   {savingGist
@@ -844,7 +876,7 @@ export function VictoryModal({
                 golfAudio.playButtonClick();
                 onConnectGithub();
               }}
-              className="min-h-[38px] inline-flex items-center gap-2 text-xs font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] px-3.5 py-1.5 rounded-xl border-2 border-[#522810] cursor-pointer"
+              className="min-h-[36px] inline-flex items-center gap-2 text-xs font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] px-3.5 py-1.5 rounded-xl border-2 border-[#522810] cursor-pointer"
             >
               <span>
                 {githubConnecting ? 'Connecting GitHub...' : 'Connect GitHub to Save Scorecard'}
@@ -863,35 +895,39 @@ export function VictoryModal({
           )}
         </div>
 
-        <div className="mt-3 flex flex-col sm:flex-row gap-2.5">
+        {/* 3 Required Championship Buttons */}
+        <div className="mt-3 flex flex-col sm:flex-row gap-2">
           <button
             type="button"
             data-start="true"
+            data-testid="championship-world-select-btn"
             onClick={() => {
               golfAudio.playCardSelect();
-              onPlayAgain();
+              onSelectWorld();
             }}
-            className="min-h-[48px] flex-1 font-display text-xl font-bold text-[#FFFDF5] bg-[#FF595E] hover:bg-[#FF4248] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-5 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+            className="min-h-[46px] flex-1 font-display text-base sm:text-lg font-bold text-[#FFFDF5] bg-[#2FA752] hover:bg-[#269145] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-4 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
-            Replay Course
+            World Selection
           </button>
           <button
             type="button"
+            data-testid="championship-replay-any-btn"
             onClick={() => {
               golfAudio.playButtonClick();
-              onSelectCourse();
+              onReplayAnyHole();
             }}
-            className="min-h-[48px] flex-1 sm:flex-none font-display text-lg font-bold text-[#3B1D0E] bg-[#FFF2CC] hover:bg-[#FCE6A6] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-5 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+            className="min-h-[46px] flex-1 font-display text-base sm:text-lg font-bold text-[#3B1D0E] bg-[#FDE047] hover:bg-[#FACC15] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-4 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
-            Select World
+            Replay Any Unlocked Hole
           </button>
           <button
             type="button"
+            data-testid="championship-main-menu-btn"
             onClick={() => {
               golfAudio.playButtonClick();
               onTitle();
             }}
-            className="min-h-[48px] flex-1 sm:flex-none font-display text-lg font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-5 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+            className="min-h-[46px] sm:flex-none font-display text-base sm:text-lg font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-4 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
             Main Menu
           </button>

@@ -312,7 +312,9 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
           currentPhase === 'paused' ||
           currentPhase === 'course_select' ||
           currentPhase === 'settings' ||
-          currentPhase === 'out_of_strokes'
+          currentPhase === 'out_of_strokes' ||
+          currentPhase === 'world_complete' ||
+          currentPhase === 'victory'
         ) {
           const overlayKey = `${currentPhase}:${level.id}:${Math.round(transformRef.current.width)}:${Math.round(transformRef.current.height)}`;
           if (staticOverlayRenderedKey !== overlayKey) {
@@ -336,7 +338,7 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
         }
         staticOverlayRenderedKey = '';
 
-        if (currentPhase === 'playing' || currentPhase === 'level_clear' || currentPhase === 'victory') {
+        if (currentPhase === 'playing' || currentPhase === 'level_clear') {
           const events = stepSimulation(sim, level, dt);
           for (const ev of events) {
             if (ev.type === 'wall') {

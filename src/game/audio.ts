@@ -603,6 +603,49 @@ class GolfAudio {
       osc.stop(chordStart + 0.98);
     });
   }
+
+  /** Crisp, uplifting achievement sound when completing a world and unlocking the next */
+  public playWorldCompleteFanfare(): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const notes = [
+      { freq: 523.25, t: 0.0, dur: 0.16 }, // C5
+      { freq: 659.25, t: 0.08, dur: 0.16 }, // E5
+      { freq: 783.99, t: 0.16, dur: 0.18 }, // G5
+      { freq: 1046.5, t: 0.25, dur: 0.36 }, // C6
+      { freq: 1318.5, t: 0.39, dur: 0.45 }, // E6
+    ];
+
+    for (const note of notes) {
+      const start = now + note.t;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(note.freq, start);
+      gain.gain.setValueAtTime(0.15, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + note.dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + note.dur + 0.03);
+    }
+
+    const chordStart = now + 0.42;
+    [523.25, 783.99, 1046.5].forEach((freq) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, chordStart);
+      gain.gain.setValueAtTime(0.065, chordStart);
+      gain.gain.exponentialRampToValueAtTime(0.001, chordStart + 0.52);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(chordStart);
+      osc.stop(chordStart + 0.55);
+    });
+  }
 }
 
 export const golfAudio = new GolfAudio();

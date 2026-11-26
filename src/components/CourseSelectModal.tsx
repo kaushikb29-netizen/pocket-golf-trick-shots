@@ -17,6 +17,7 @@ import {
 interface CourseSelectModalProps {
   progress: ProgressStore;
   initialWorldId?: WorldId | null;
+  initialView?: 'worlds' | 'all_holes';
   onSelectHole: (levelIndex: number) => void;
   onClose: () => void;
 }
@@ -72,7 +73,7 @@ function CheckBadgeIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
 }
 
 /** Custom lightweight cartoon-arcade full-bleed illustrated banner for each of the 6 worlds */
-function WorldIllustration({
+export function WorldIllustration({
   worldId,
   tall = false,
 }: {
@@ -327,19 +328,165 @@ function WorldIllustration({
 export function CourseSelectModal({
   progress,
   initialWorldId = null,
+  initialView = 'worlds',
   onSelectHole,
   onClose,
 }: CourseSelectModalProps) {
   const [selectedWorldId, setSelectedWorldId] = useState<WorldId | null>(() => {
-    if (!initialWorldId) return null;
+    if (!initialWorldId || initialView === 'all_holes') return null;
     const candidate = getWorldById(initialWorldId);
     return !candidate.comingSoon && isWorldUnlocked(progress, candidate)
       ? candidate.id
       : null;
   });
+  const [showAllHoles, setShowAllHoles] = useState<boolean>(initialView === 'all_holes');
 
   const overall = getOverallProgressStats(progress);
   const activeWorld = selectedWorldId ? getWorldById(selectedWorldId) : null;
+
+  // VIEW 3: REPLAY ANY UNLOCKED HOLE (GROUPED ACROSS ALL UNLOCKED WORLDS)
+  if (showAllHoles && !activeWorld) {
+    const unlockedWorlds = COURSE_WORLDS.filter(
+      (world) => !world.comingSoon && isWorldUnlocked(progress, world)
+    );
+
+    return (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="replay-holes-title"
+        className="fixed inset-0 z-30 flex items-center justify-center p-2.5 sm:p-4"
+        style={{ backgroundColor: 'rgba(11, 52, 64, 0.74)' }}
+      >
+        <div className="animate-modal-pop w-full max-w-4xl max-h-[94dvh] overflow-y-auto touch-pan-y overscroll-contain bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-3.5 sm:p-5 shadow-[0_12px_0_#522810]">
+          <div className="flex items-center justify-between gap-2 pb-3 border-b-2 border-[#E6D3AB]">
+            <button
+              type="button"
+              data-testid="switch-to-worlds-btn"
+              onClick={() => {
+                golfAudio.playButtonClick();
+                setShowAllHoles(false);
+              }}
+              className="min-h-[42px] px-3.5 py-2 font-display text-sm sm:text-base font-bold text-[#3B1D0E] bg-[#F5E6C4] hover:bg-[#EBD5A7] hover:-translate-y-0.5 active:translate-y-0.5 rounded-xl border-[3px] border-[#522810] shadow-[0_3px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+            >
+              ← All Worlds
+            </button>
+
+            <div className="text-center min-w-0">
+              <h2
+                id="replay-holes-title"
+                className="font-display text-lg sm:text-2xl font-bold text-[#3B1D0E] leading-tight truncate"
+              >
+                Replay Any Unlocked Hole
+              </h2>
+              <p className="text-[11px] sm:text-xs font-bold text-[#7C4B27] tabular-nums">
+                {overall.completedHoles}/{overall.totalHoles} Cleared · ★ {overall.earnedStars}/{overall.maxStars}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                golfAudio.playButtonClick();
+                onClose();
+              }}
+              aria-label="Back to Main Menu"
+              className="min-h-[42px] px-3.5 py-2 font-display text-sm sm:text-base font-bold text-[#3B1D0E] bg-[#FFFDF7] hover:bg-[#F5E6C4] hover:-translate-y-0.5 active:translate-y-0.5 rounded-xl border-[3px] border-[#522810] shadow-[0_3px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
+            >
+              Menu
+            </button>
+          </div>
+
+          <div
+            data-testid="replay-unlocked-holes-grid"
+            className="mt-3.5 space-y-3.5"
+          >
+            {unlockedWorlds.map((world) => {
+              const worldStats = getWorldStats(progress, world);
+              return (
+                <section
+                  key={world.id}
+                  className="rounded-2xl border-[3px] border-[#522810] p-3 sm:p-3.5"
+                  style={{ backgroundColor: world.surfaceHex }}
+                >
+                  <div className="flex items-center justify-between gap-2 pb-2 border-b-2 border-[#522810]/15">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="px-2 py-0.5 rounded-lg border-2 border-[#522810] font-display text-[11px] font-bold shrink-0"
+                        style={{
+                          backgroundColor: world.badgeBgHex,
+                          color: world.badgeTextHex,
+                        }}
+                      >
+                        W{world.worldNumber}
+                      </span>
+                      <h3 className="font-display text-base sm:text-lg font-bold text-[#3B1D0E] truncate">
+                        {world.name}
+                      </h3>
+                    </div>
+                    <span className="inline-flex items-center gap-1 font-display text-xs sm:text-sm font-bold text-[#B45309] tabular-nums shrink-0">
+                      <MiniStar filled={worldStats.earnedStars > 0} size="xs" />
+                      {worldStats.earnedStars}/{worldStats.maxStars}
+                    </span>
+                  </div>
+
+                  <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {world.holeIds.map((holeId) => {
+                      const implemented = isHoleImplemented(holeId);
+                      const lvl = implemented ? LEVELS[holeId - 1] : null;
+                      const rec = progress.holes[holeId];
+                      const unlocked = implemented && isHoleUnlocked(progress, holeId);
+
+                      return (
+                        <button
+                          key={holeId}
+                          type="button"
+                          disabled={!unlocked}
+                          data-testid={`replay-hole-btn-${holeId}`}
+                          onClick={() => {
+                            if (!unlocked || !lvl) return;
+                            golfAudio.playCardSelect();
+                            onSelectHole(holeId - 1);
+                          }}
+                          className={`text-left rounded-xl border-[2.5px] p-2.5 transition-transform flex flex-col justify-between gap-1.5 ${
+                            unlocked
+                              ? 'border-[#522810] bg-[#FFFDF7] hover:bg-[#FFF9E6] hover:-translate-y-0.5 active:translate-y-0.5 shadow-[0_3px_0_#522810] cursor-pointer'
+                              : 'border-[#C9B896] bg-[#F2E9D6] text-[#8E7656] cursor-not-allowed opacity-75'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-display text-xs font-bold text-[#522810]">
+                              Hole {holeId}
+                            </span>
+                            <div className="flex items-center gap-0.5" aria-hidden="true">
+                              <MiniStar filled={(rec?.stars ?? 0) >= 1} size="xs" />
+                              <MiniStar filled={(rec?.stars ?? 0) >= 2} size="xs" />
+                              <MiniStar filled={(rec?.stars ?? 0) >= 3} size="xs" />
+                            </div>
+                          </div>
+                          <div className="font-display text-xs sm:text-sm font-bold text-[#3B1D0E] leading-tight truncate">
+                            {lvl ? lvl.name : 'Coming Soon'}
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] font-bold tabular-nums">
+                            <span className="text-[#247A3C]">
+                              {lvl ? `Par ${lvl.par}` : '—'}
+                            </span>
+                            <span className={rec ? 'text-[#3B1D0E]' : 'text-[#8A6744]'}>
+                              {!unlocked ? 'Locked' : rec ? `Best ${rec.bestStrokes}` : 'Play'}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // VIEW 2: LEVEL SELECTION (4-BUTTON GRID FOR OPENED WORLD)
   if (activeWorld && !activeWorld.comingSoon) {

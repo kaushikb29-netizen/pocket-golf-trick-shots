@@ -280,6 +280,7 @@ export type GamePhase =
   | 'playing'
   | 'paused'
   | 'level_clear'
+  | 'world_complete'
   | 'out_of_strokes'
   | 'victory';
 

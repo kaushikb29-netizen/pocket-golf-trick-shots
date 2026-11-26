@@ -140,6 +140,27 @@
   animation: crestShine 5.5s ease-in-out infinite;
 }
 
+@keyframes confettiFall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -18px, 0) rotate(0deg) scale(0.85);
+  }
+  12% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--confetti-drift, 24px), 102vh, 0) rotate(520deg) scale(1);
+  }
+}
+
+.animate-confetti {
+  animation: confettiFall var(--confetti-dur, 2.8s) cubic-bezier(0.25, 0.46, 0.45, 0.94) var(--confetti-delay, 0s) infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-float-slow,
   .animate-modal-pop,
@@ -148,7 +169,8 @@
   .animate-star-pop-3,
   .animate-banner-pulse,
   .animate-sparkle,
-  .animate-crest-shine {
+  .animate-crest-shine,
+  .animate-confetti {
     animation: none;
   }
 }

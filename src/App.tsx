@@ -11,14 +11,20 @@ import {
 } from './components/GameModals';
 import { MobileInstallModal, OfflineIndicator } from './components/MobileInstallModal';
 import { TitleScreen } from './components/TitleScreen';
+import { WorldCompleteModal } from './components/WorldCompleteModal';
 import { useGithubAuth } from './hooks/useGithubAuth';
 import { golfAudio } from './game/audio';
 import { LEVELS } from './game/levels';
 import { getMaxStrokes } from './game/physics';
 import {
   COURSE_WORLDS,
+  getNextWorld,
   getOverallProgressStats,
-  getWorldStats,
+  getWorldById,
+  getWorldCompletionSummary,
+  getWorldForLevelId,
+  isFinalHoleOfWorld,
+  isWorldUnlocked,
   loadProgressFromStorage,
   ProgressStore,
   recordFullCourseBest,
@@ -31,6 +37,12 @@ import {
 } from './game/progression';
 import { GamePhase } from './game/types';
 
+interface PendingWorldCelebration {
+  worldId: WorldId;
+  newlyUnlockedWorldId: WorldId | null;
+  isChampionship: boolean;
+}
+
 function parseInitialParams(): {
   initialPhase: GamePhase;
   startLevelIdx: number;
@@ -38,6 +50,8 @@ function parseInitialParams(): {
   previewStrokes: number;
   openMobileModal: boolean;
   initialWorldId: WorldId | null;
+  initialWorldCelebration: PendingWorldCelebration | null;
+  previewUnlockedWorldIds: WorldId[];
 } {
   if (typeof window === 'undefined') {
     return {
@@ -47,6 +61,8 @@ function parseInitialParams(): {
       previewStrokes: 0,
       openMobileModal: false,
       initialWorldId: null,
+      initialWorldCelebration: null,
+      previewUnlockedWorldIds: [],
     };
   }
   const params = new URLSearchParams(window.location.search);
@@ -67,6 +83,29 @@ function parseInitialParams(): {
   const worldParam = params.get('world');
   const matchedWorld = COURSE_WORLDS.find((w) => w.id === worldParam)?.id ?? null;
 
+  if (preview === 'world_complete') {
+    const targetWorld = getWorldById(matchedWorld ?? 'sunny-garden');
+    const nextW = getNextWorld(targetWorld.id);
+    const isNew = params.get('new') !== '0';
+    const scores = LEVELS.map((l) =>
+      targetWorld.holeIds.includes(l.id) ? Math.max(1, l.par - (l.id % 2 === 0 ? 1 : 0)) : 0
+    );
+    return {
+      initialPhase: 'world_complete',
+      startLevelIdx: Math.max(0, targetWorld.holeIds[3] - 1),
+      previewScores: scores,
+      previewStrokes: 0,
+      openMobileModal: false,
+      initialWorldId: null,
+      initialWorldCelebration: {
+        worldId: targetWorld.id,
+        newlyUnlockedWorldId: isNew && nextW ? nextW.id : null,
+        isChampionship: false,
+      },
+      previewUnlockedWorldIds: nextW ? [targetWorld.id, nextW.id] : [targetWorld.id],
+    };
+  }
+
   if (preview === 'victory') {
     return {
       initialPhase: 'victory',
@@ -75,17 +114,39 @@ function parseInitialParams(): {
       previewStrokes: 0,
       openMobileModal: false,
       initialWorldId: null,
+      initialWorldCelebration: null,
+      previewUnlockedWorldIds: COURSE_WORLDS.map((w) => w.id),
     };
   }
 
   if (preview === 'clear') {
+    const holeId = lvl.id;
+    const isFinale = isFinalHoleOfWorld(holeId);
+    const world = getWorldForLevelId(holeId);
+    const nextW = getNextWorld(world.id);
+    const isChamp = holeId === LEVELS.length;
+    const previewScores = isFinale
+      ? LEVELS.map((l) =>
+          isChamp || world.holeIds.includes(l.id)
+            ? Math.max(1, l.par + (l.id % 3 === 0 ? -1 : 0))
+            : 0
+        )
+      : null;
     return {
       initialPhase: 'level_clear',
       startLevelIdx: clampedIdx,
-      previewScores: null,
+      previewScores,
       previewStrokes: Number.isFinite(strokesParam) && strokesParam >= 1 ? strokesParam : 1,
       openMobileModal: false,
       initialWorldId: null,
+      initialWorldCelebration: isFinale
+        ? {
+            worldId: world.id,
+            newlyUnlockedWorldId: !isChamp && nextW ? nextW.id : null,
+            isChampionship: isChamp,
+          }
+        : null,
+      previewUnlockedWorldIds: isFinale && nextW ? [world.id, nextW.id] : [],
     };
   }
 
@@ -97,6 +158,8 @@ function parseInitialParams(): {
       previewStrokes: getMaxStrokes(lvl.par),
       openMobileModal: false,
       initialWorldId: null,
+      initialWorldCelebration: null,
+      previewUnlockedWorldIds: [],
     };
   }
 
@@ -108,6 +171,8 @@ function parseInitialParams(): {
       previewStrokes: getMaxStrokes(lvl.par),
       openMobileModal: false,
       initialWorldId: null,
+      initialWorldCelebration: null,
+      previewUnlockedWorldIds: [],
     };
   }
 
@@ -119,6 +184,8 @@ function parseInitialParams(): {
       previewStrokes: 0,
       openMobileModal: false,
       initialWorldId: matchedWorld,
+      initialWorldCelebration: null,
+      previewUnlockedWorldIds: [],
     };
   }
 
@@ -130,6 +197,8 @@ function parseInitialParams(): {
       previewStrokes: 0,
       openMobileModal: false,
       initialWorldId: null,
+      initialWorldCelebration: null,
+      previewUnlockedWorldIds: [],
     };
   }
 
@@ -140,6 +209,8 @@ function parseInitialParams(): {
     previewStrokes: Number.isFinite(strokesParam) && strokesParam >= 0 ? strokesParam : 0,
     openMobileModal: view === 'mobile',
     initialWorldId: null,
+    initialWorldCelebration: null,
+    previewUnlockedWorldIds: [],
   };
 }
 
@@ -149,6 +220,9 @@ export default function App() {
 
   const [phase, setPhase] = useState<GamePhase>(initialParams.initialPhase);
   const [returnPhase, setReturnPhase] = useState<'title' | 'paused'>('title');
+  const [courseSelectInitialView, setCourseSelectInitialView] = useState<'worlds' | 'all_holes'>(
+    'worlds'
+  );
   const [levelIndex, setLevelIndex] = useState<number>(initialParams.startLevelIdx);
   const [strokes, setStrokes] = useState<number>(initialParams.previewStrokes);
   const [holeStrokes, setHoleStrokes] = useState<number[]>(() =>
@@ -156,6 +230,8 @@ export default function App() {
   );
   const [progress, setProgress] = useState<ProgressStore>(() => loadProgressFromStorage());
   const [lastClearNewBest, setLastClearNewBest] = useState<boolean>(false);
+  const [pendingWorldCelebration, setPendingWorldCelebration] =
+    useState<PendingWorldCelebration | null>(initialParams.initialWorldCelebration);
   const [showMobileInstall, setShowMobileInstall] = useState<boolean>(
     initialParams.openMobileModal
   );
@@ -177,21 +253,33 @@ export default function App() {
     () => getOverallProgressStats(progress),
     [progress]
   );
-  const clockworkWorldStats = useMemo(() => {
-    const clockworkWorld = COURSE_WORLDS.find((w) => w.id === 'clockwork-carnival');
-    return clockworkWorld
-      ? getWorldStats(progress, clockworkWorld)
-      : { earnedStars: 0, maxStars: 12 };
-  }, [progress]);
 
   const currentLevel = LEVELS[levelIndex] ?? LEVELS[0];
   const currentMaxStrokes = getMaxStrokes(currentLevel.par);
   const currentHoleRecord = progress.holes[currentLevel.id] ?? null;
 
+  const activeWorldSummary = useMemo(() => {
+    if (!pendingWorldCelebration || pendingWorldCelebration.isChampionship) return null;
+    const completedWorld = getWorldById(pendingWorldCelebration.worldId);
+    return getWorldCompletionSummary(progress, completedWorld, holeStrokes);
+  }, [pendingWorldCelebration, progress, holeStrokes]);
+
+  const canContinueToNextWorld = useMemo(() => {
+    if (!activeWorldSummary || !activeWorldSummary.nextWorld) return false;
+    if (!activeWorldSummary.isNextWorldPlayable) return false;
+    return (
+      isWorldUnlocked(progress, activeWorldSummary.nextWorld) ||
+      initialParams.previewUnlockedWorldIds.includes(activeWorldSummary.nextWorld.id)
+    );
+  }, [activeWorldSummary, progress, initialParams.previewUnlockedWorldIds]);
+
   // Mirror state machine onto document.body.dataset for reliable accessibility & verification
   useEffect(() => {
     const bodyState =
-      phase === 'victory' || phase === 'level_clear' || phase === 'out_of_strokes'
+      phase === 'victory' ||
+      phase === 'level_clear' ||
+      phase === 'out_of_strokes' ||
+      phase === 'world_complete'
         ? 'gameover'
         : phase === 'course_select' || phase === 'settings'
         ? 'title'
@@ -223,6 +311,7 @@ export default function App() {
     setStrokes(0);
     setHoleStrokes(LEVELS.map(() => 0));
     setLastClearNewBest(false);
+    setPendingWorldCelebration(null);
     persistLastPlayed(1);
     setPhase('playing');
     document.body.dataset.state = 'playing';
@@ -243,6 +332,7 @@ export default function App() {
     setStrokes(0);
     setHoleStrokes(LEVELS.map(() => 0));
     setLastClearNewBest(false);
+    setPendingWorldCelebration(null);
     persistLastPlayed(targetIdx + 1);
     setPhase('playing');
     document.body.dataset.state = 'playing';
@@ -260,6 +350,7 @@ export default function App() {
       setStrokes(0);
       setHoleStrokes(LEVELS.map(() => 0));
       setLastClearNewBest(false);
+      setPendingWorldCelebration(null);
       persistLastPlayed(safeIdx + 1);
       setPhase('playing');
       document.body.dataset.state = 'playing';
@@ -269,11 +360,19 @@ export default function App() {
   );
 
   const handleOpenCoursesFromTitle = useCallback(() => {
+    setCourseSelectInitialView('worlds');
+    setReturnPhase('title');
+    setPhase('course_select');
+  }, []);
+
+  const handleOpenReplayAnyHole = useCallback(() => {
+    setCourseSelectInitialView('all_holes');
     setReturnPhase('title');
     setPhase('course_select');
   }, []);
 
   const handleOpenCoursesFromPause = useCallback(() => {
+    setCourseSelectInitialView('worlds');
     setReturnPhase('paused');
     setPhase('course_select');
   }, []);
@@ -298,6 +397,7 @@ export default function App() {
     }
     setStrokes(0);
     setLastClearNewBest(false);
+    setPendingWorldCelebration(null);
     setPhase('playing');
     canvasHandleRef.current?.resetBallToTee();
   }, []);
@@ -313,6 +413,7 @@ export default function App() {
   holeStrokesRef.current = holeStrokes;
   progressRef.current = progress;
 
+  // Always show normal Hole Clear results FIRST, then advance into World Completion or Championship
   const handleHoleSunk = useCallback(() => {
     const level = LEVELS[levelIndex] ?? LEVELS[0];
     const recordedStrokes = Math.max(1, strokesRef.current);
@@ -322,34 +423,42 @@ export default function App() {
     setHoleStrokes(nextHoleStrokes);
     setStrokes(recordedStrokes);
 
-    const { progress: afterHole, isNewBest } = recordHoleCompletion(
-      progressRef.current,
-      level.id,
-      recordedStrokes,
-      level.par
-    );
+    const {
+      progress: afterHole,
+      isNewBest,
+      completedWorld,
+      newlyUnlockedWorld,
+    } = recordHoleCompletion(progressRef.current, level.id, recordedStrokes, level.par);
     setLastClearNewBest(isNewBest);
 
     let finalProgress = afterHole;
-    if (levelIndex >= LEVELS.length - 1) {
+    const isFinalHole = level.id === LEVELS.length;
+    if (isFinalHole) {
       const completedFullTour = nextHoleStrokes.every((s) => s > 0);
       if (completedFullTour) {
         const total = nextHoleStrokes.reduce((sum, n) => sum + n, 0);
         const bestRes = recordFullCourseBest(afterHole, total);
         finalProgress = bestRes.progress;
       }
-      saveProgressToStorage(finalProgress);
-      setProgress(finalProgress);
-      golfAudio.playGrandChampionshipFanfare();
-      setPhase('victory');
-    } else {
-      saveProgressToStorage(finalProgress);
-      setProgress(finalProgress);
-      setPhase('level_clear');
     }
+
+    saveProgressToStorage(finalProgress);
+    setProgress(finalProgress);
+
+    if (completedWorld) {
+      setPendingWorldCelebration({
+        worldId: completedWorld.id,
+        newlyUnlockedWorldId: newlyUnlockedWorld?.id ?? null,
+        isChampionship: isFinalHole,
+      });
+    } else {
+      setPendingWorldCelebration(null);
+    }
+
+    setPhase('level_clear');
   }, [levelIndex]);
 
-  // Failed attempt: never unlocks next hole, never overwrites best records
+  // Failed attempt: never unlocks next hole or world, never overwrites best records
   const handleOutOfStrokes = useCallback(() => {
     setPhase('out_of_strokes');
   }, []);
@@ -358,13 +467,69 @@ export default function App() {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
+
+    // Two-step world progression: after Hole 4, 8, 12, 16, 20 -> World Completion; after Hole 24 -> Championship
+    if (pendingWorldCelebration) {
+      if (pendingWorldCelebration.isChampionship) {
+        golfAudio.playGrandChampionshipFanfare();
+        setPhase('victory');
+      } else {
+        golfAudio.playWorldCompleteFanfare();
+        setPhase('world_complete');
+      }
+      return;
+    }
+
+    const level = LEVELS[levelIndex] ?? LEVELS[0];
+    if (isFinalHoleOfWorld(level.id)) {
+      if (level.id === LEVELS.length) {
+        golfAudio.playGrandChampionshipFanfare();
+        setPhase('victory');
+      } else {
+        const w = getWorldForLevelId(level.id);
+        setPendingWorldCelebration({
+          worldId: w.id,
+          newlyUnlockedWorldId: null,
+          isChampionship: false,
+        });
+        golfAudio.playWorldCompleteFanfare();
+        setPhase('world_complete');
+      }
+      return;
+    }
+
     const nextIdx = Math.min(LEVELS.length - 1, levelIndex + 1);
     setLevelIndex(nextIdx);
     setStrokes(0);
     setLastClearNewBest(false);
     persistLastPlayed(nextIdx + 1);
     setPhase('playing');
-  }, [levelIndex, persistLastPlayed]);
+  }, [levelIndex, pendingWorldCelebration, persistLastPlayed]);
+
+  const handleContinueToNextWorld = useCallback(() => {
+    if (!activeWorldSummary?.nextWorld || !canContinueToNextWorld) return;
+    const firstHoleOfNextWorld = activeWorldSummary.nextWorld.holeIds[0];
+    const nextIdx = Math.max(0, Math.min(LEVELS.length - 1, firstHoleOfNextWorld - 1));
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    golfAudio.unlockAndStartMusic();
+    setPendingWorldCelebration(null);
+    setLevelIndex(nextIdx);
+    setStrokes(0);
+    setLastClearNewBest(false);
+    persistLastPlayed(firstHoleOfNextWorld);
+    setPhase('playing');
+    document.body.dataset.state = 'playing';
+    canvasHandleRef.current?.resetBallToTee();
+  }, [activeWorldSummary, canContinueToNextWorld, persistLastPlayed]);
+
+  const handleWorldSelectionFromCelebration = useCallback(() => {
+    setPendingWorldCelebration(null);
+    setCourseSelectInitialView('worlds');
+    setReturnPhase('title');
+    setPhase('course_select');
+  }, []);
 
   const handleToggleSound = useCallback(() => {
     const nextSound = !progressRef.current.audio.soundEnabled;
@@ -420,6 +585,7 @@ export default function App() {
     setStrokes(0);
     setHoleStrokes(LEVELS.map(() => 0));
     setLastClearNewBest(false);
+    setPendingWorldCelebration(null);
     canvasHandleRef.current?.resetBallToTee();
   }, []);
 
@@ -427,6 +593,7 @@ export default function App() {
     setLevelIndex(0);
     setStrokes(0);
     setLastClearNewBest(false);
+    setPendingWorldCelebration(null);
     setPhase('title');
     canvasHandleRef.current?.resetBallToTee();
   }, []);
@@ -483,10 +650,24 @@ export default function App() {
         return;
       }
 
+      if (phase === 'world_complete') {
+        if ((e.key === 'Enter' || e.key === ' ') && canContinueToNextWorld) {
+          e.preventDefault();
+          handleContinueToNextWorld();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          handleWorldSelectionFromCelebration();
+        }
+        return;
+      }
+
       if (phase === 'victory') {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          handleNewGame();
+          handleOpenCoursesFromTitle();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          handleReturnToTitle();
         }
         return;
       }
@@ -514,8 +695,11 @@ export default function App() {
   }, [
     phase,
     showMobileInstall,
+    canContinueToNextWorld,
     handleContinueGame,
-    handleNewGame,
+    handleContinueToNextWorld,
+    handleWorldSelectionFromCelebration,
+    handleOpenCoursesFromTitle,
     handleCloseSubmodal,
     handleNextHole,
     handleRestartHole,
@@ -568,6 +752,7 @@ export default function App() {
         <CourseSelectModal
           progress={progress}
           initialWorldId={initialParams.initialWorldId}
+          initialView={courseSelectInitialView}
           onSelectHole={handleSelectHole}
           onClose={handleCloseSubmodal}
         />
@@ -588,20 +773,24 @@ export default function App() {
       )}
 
       {/* Active Playing HUD */}
-      {phase !== 'title' && phase !== 'course_select' && phase !== 'settings' && (
-        <GameHud
-          level={currentLevel}
-          levelNumber={currentLevel.id}
-          totalLevels={LEVELS.length}
-          strokes={strokes}
-          maxStrokes={currentMaxStrokes}
-          muted={muted}
-          showFirstShotHint={phase === 'playing' && levelIndex === 0 && strokes === 0}
-          onRestart={handleRestartHole}
-          onToggleMute={handleToggleMute}
-          onPause={() => setPhase('paused')}
-        />
-      )}
+      {phase !== 'title' &&
+        phase !== 'course_select' &&
+        phase !== 'settings' &&
+        phase !== 'world_complete' &&
+        phase !== 'victory' && (
+          <GameHud
+            level={currentLevel}
+            levelNumber={currentLevel.id}
+            totalLevels={LEVELS.length}
+            strokes={strokes}
+            maxStrokes={currentMaxStrokes}
+            muted={muted}
+            showFirstShotHint={phase === 'playing' && levelIndex === 0 && strokes === 0}
+            onRestart={handleRestartHole}
+            onToggleMute={handleToggleMute}
+            onPause={() => setPhase('paused')}
+          />
+        )}
 
       {/* Pause Modal */}
       {phase === 'paused' && (
@@ -629,7 +818,7 @@ export default function App() {
         />
       )}
 
-      {/* Hole Clear Celebration Modal */}
+      {/* Hole Clear Celebration Modal (always shown first, even on Holes 4, 8, 12, 16, 20, 24) */}
       {phase === 'level_clear' && (
         <LevelClearModal
           levelNumber={currentLevel.id}
@@ -638,21 +827,30 @@ export default function App() {
           par={currentLevel.par}
           bestStrokes={currentHoleRecord?.bestStrokes ?? null}
           isNewBest={lastClearNewBest}
+          isWorldFinale={isFinalHoleOfWorld(currentLevel.id) && currentLevel.id < LEVELS.length}
+          isFinalHole={currentLevel.id === LEVELS.length}
           onNextHole={handleNextHole}
           onReplayHole={handleRestartHole}
         />
       )}
 
-      {/* Final Course Victory & Grand Championship Celebration (Hole 24) */}
+      {/* World Completion Celebration & New World Unlocked Screen (Worlds 1-5) */}
+      {phase === 'world_complete' && activeWorldSummary && (
+        <WorldCompleteModal
+          summary={activeWorldSummary}
+          isNewlyUnlocked={Boolean(pendingWorldCelebration?.newlyUnlockedWorldId)}
+          canContinueToNextWorld={canContinueToNextWorld}
+          onContinueNextWorld={handleContinueToNextWorld}
+          onWorldSelection={handleWorldSelectionFromCelebration}
+        />
+      )}
+
+      {/* Final World Championship Celebration (Hole 24) */}
       {phase === 'victory' && (
         <VictoryModal
           holeStrokes={holeStrokes}
-          lastHoleStrokes={strokes}
-          lastHolePar={currentLevel.par}
-          worldEarnedStars={clockworkWorldStats.earnedStars}
-          worldMaxStars={clockworkWorldStats.maxStars}
-          totalEarnedStars={overallProgress.earnedStars}
-          totalMaxStars={overallProgress.maxStars}
+          savedHoles={progress.holes}
+          overallProgress={overallProgress}
           bestTotal={progress.bestFullCourseTotal}
           githubUser={github.user}
           githubConnecting={github.connecting}
@@ -660,8 +858,8 @@ export default function App() {
           githubCallbackUrlHint={github.callbackUrlHint}
           onConnectGithub={github.connect}
           onShareScorecard={github.shareScorecard}
-          onPlayAgain={handleNewGame}
-          onSelectCourse={handleOpenCoursesFromTitle}
+          onSelectWorld={handleWorldSelectionFromCelebration}
+          onReplayAnyHole={handleOpenReplayAnyHole}
           onTitle={handleReturnToTitle}
         />
       )}

@@ -7,10 +7,13 @@ import {
   PLAYABLE_WORLDS,
   createEmptyProgress,
   deserializeProgress,
+  getNextWorld,
   getOverallProgressStats,
   getWorldById,
+  getWorldCompletionSummary,
   getWorldForLevelId,
   getWorldStats,
+  isFinalHoleOfWorld,
   isHoleImplemented,
   isHoleUnlocked,
   isWorldUnlocked,
@@ -144,11 +147,32 @@ test('recordHoleCompletion saves best strokes, unlocks sequentially through Hole
   assert.deepEqual(store.holes[1], { bestStrokes: 2, stars: 3 });
   assert.equal(store.totalStars, 3);
 
-  // Completing Hole 20 unlocks Hole 21 and World 6 Clockwork Carnival
-  store = recordHoleCompletion(store, 20, 5, 5).progress;
+  // Clearing only Hole 20 without clearing Holes 17-19 does NOT unlock World 6 yet
+  const skipHole20 = recordHoleCompletion(store, 20, 5, 5);
+  assert.equal(skipHole20.completedWorld?.id, 'candy-factory');
+  assert.equal(skipHole20.newlyUnlockedWorld, null);
+  assert.equal(isWorldUnlocked(skipHole20.progress, getWorldById('clockwork-carnival')), false);
+
+  // Clearing all 4 holes of Candy Factory (17, 18, 19, 20) unlocks World 6 Clockwork Carnival and Hole 21 ONCE
+  store = recordHoleCompletion(store, 17, 3, 3).progress;
+  store = recordHoleCompletion(store, 18, 4, 4).progress;
+  store = recordHoleCompletion(store, 19, 4, 4).progress;
+  const finishWorld5 = recordHoleCompletion(store, 20, 5, 5);
+  store = finishWorld5.progress;
+  assert.equal(finishWorld5.completedWorld?.id, 'candy-factory');
+  assert.equal(finishWorld5.newlyUnlockedWorld?.id, 'clockwork-carnival');
   assert.equal(store.lastUnlockedHole, 21);
   assert.equal(isHoleUnlocked(store, 21), true);
   assert.equal(isHoleUnlocked(store, 22), false);
+  assert.equal(isWorldUnlocked(store, getWorldById('clockwork-carnival')), true);
+  assert.equal(store.unlockedWorlds.includes('clockwork-carnival'), true);
+
+  // Replaying Hole 20 still reports completedWorld without re-awarding newlyUnlockedWorld or corrupting best score
+  const replayHole20 = recordHoleCompletion(store, 20, 7, 5);
+  store = replayHole20.progress;
+  assert.equal(replayHole20.completedWorld?.id, 'candy-factory');
+  assert.equal(replayHole20.newlyUnlockedWorld, null);
+  assert.deepEqual(store.holes[20], { bestStrokes: 5, stars: 3 });
   assert.equal(isWorldUnlocked(store, getWorldById('clockwork-carnival')), true);
 
   store = recordHoleCompletion(store, 21, 4, 4).progress;
@@ -163,10 +187,58 @@ test('recordHoleCompletion saves best strokes, unlocks sequentially through Hole
   assert.equal(store.lastUnlockedHole, 24);
   assert.equal(isHoleUnlocked(store, 24), true);
 
-  // Completing Hole 24 caps at 24 and never unlocks Hole 25
-  store = recordHoleCompletion(store, 24, 5, 5).progress;
+  // Completing Hole 24 finishes Clockwork Carnival, never attempts to unlock World 7, and caps at Hole 24
+  const finishWorld6 = recordHoleCompletion(store, 24, 5, 5);
+  store = finishWorld6.progress;
+  assert.equal(finishWorld6.completedWorld?.id, 'clockwork-carnival');
+  assert.equal(finishWorld6.newlyUnlockedWorld, null);
+  assert.equal(getNextWorld('clockwork-carnival'), null);
   assert.equal(store.lastUnlockedHole, 24);
   assert.equal(isHoleUnlocked(store, 25), false);
+});
+
+test('world completion progression unlocks Worlds 2-6 sequentially on Holes 4, 8, 12, 16, 20 and computes accurate world summaries', () => {
+  assert.equal(isFinalHoleOfWorld(4), true);
+  assert.equal(isFinalHoleOfWorld(8), true);
+  assert.equal(isFinalHoleOfWorld(12), true);
+  assert.equal(isFinalHoleOfWorld(16), true);
+  assert.equal(isFinalHoleOfWorld(20), true);
+  assert.equal(isFinalHoleOfWorld(24), true);
+  assert.equal(isFinalHoleOfWorld(3), false);
+  assert.equal(isFinalHoleOfWorld(5), false);
+
+  let store = createEmptyProgress();
+  assert.deepEqual(store.unlockedWorlds, ['sunny-garden']);
+
+  // Clear Sunny Garden (Holes 1-4)
+  store = recordHoleCompletion(store, 1, 2, 2).progress; // Par 2 -> 3★
+  store = recordHoleCompletion(store, 2, 3, 3).progress; // Par 3 -> 3★
+  store = recordHoleCompletion(store, 3, 4, 3).progress; // Par 3 -> 2★
+  assert.equal(isWorldUnlocked(store, getWorldById('tropical-trouble')), false);
+
+  const w1Finish = recordHoleCompletion(store, 4, 3, 3); // Par 3 -> 3★
+  store = w1Finish.progress;
+  assert.equal(w1Finish.completedWorld?.id, 'sunny-garden');
+  assert.equal(w1Finish.newlyUnlockedWorld?.id, 'tropical-trouble');
+  assert.deepEqual(store.unlockedWorlds, ['sunny-garden', 'tropical-trouble']);
+  assert.equal(isWorldUnlocked(store, getWorldById('tropical-trouble')), true);
+
+  const summary = getWorldCompletionSummary(store, getWorldById('sunny-garden'));
+  assert.equal(summary.totalStrokes, 12);
+  assert.equal(summary.totalPar, 11);
+  assert.equal(summary.earnedStars, 11);
+  assert.equal(summary.maxStars, 12);
+  assert.equal(summary.nextWorld?.id, 'tropical-trouble');
+  assert.equal(summary.isNextWorldPlayable, true);
+
+  // Round-trip serialization preserves unlockedWorlds and never relocks already unlocked worlds
+  const roundTripped = deserializeProgress(JSON.stringify(store));
+  assert.deepEqual(roundTripped.unlockedWorlds, ['sunny-garden', 'tropical-trouble']);
+  assert.equal(isWorldUnlocked(roundTripped, getWorldById('tropical-trouble')), true);
+
+  const overall = getOverallProgressStats(roundTripped);
+  assert.equal(overall.totalBestStrokes, 12);
+  assert.equal(overall.completedPar, 11);
 });
 
 test('getWorldStats and getOverallProgressStats report all 6 worlds (24 holes, 72 max stars) accurately', () => {

@@ -125,6 +125,7 @@ export interface ProgressStore {
   version: 2;
   holes: Record<number, HoleProgressRecord>;
   completedHoles: number[];
+  unlockedWorlds: WorldId[];
   lastUnlockedHole: number;
   lastPlayedHole: number;
   totalStars: number;
@@ -150,9 +151,21 @@ export interface OverallProgressStats {
   totalHoles: number;
   earnedStars: number;
   maxStars: number;
+  totalBestStrokes: number;
+  completedPar: number;
   completedWorlds: number;
   playableWorlds: number;
   totalWorlds: number;
+}
+
+export interface WorldCompletionSummary {
+  world: CourseWorld;
+  totalStrokes: number;
+  totalPar: number;
+  earnedStars: number;
+  maxStars: number;
+  nextWorld: CourseWorld | null;
+  isNextWorldPlayable: boolean;
 }
 
 export const PROGRESS_STORAGE_KEY = 'pocket-golf-trick-shots-progress-v1';
@@ -172,33 +185,100 @@ function clampPlayableHole(holeId: number): number {
   return Math.min(LEVELS.length, Math.max(1, Math.round(holeId)));
 }
 
+const VALID_WORLD_IDS = new Set<WorldId>(COURSE_WORLDS.map((w) => w.id));
+
+export function getNextWorld(worldId: WorldId): CourseWorld | null {
+  const idx = COURSE_WORLDS.findIndex((w) => w.id === worldId);
+  if (idx < 0 || idx >= COURSE_WORLDS.length - 1) return null;
+  return COURSE_WORLDS[idx + 1] ?? null;
+}
+
+export function isFinalHoleOfWorld(holeId: number): boolean {
+  return COURSE_WORLDS.some((w) => w.holeIds[w.holeIds.length - 1] === holeId);
+}
+
+function isWorldPlayable(world: CourseWorld): boolean {
+  return !world.comingSoon && world.holeIds.some((id) => isHoleImplemented(id));
+}
+
 function reconcileDerivedFields(
   holes: Record<number, HoleProgressRecord>,
   storedLastUnlocked: number | null,
   storedLastPlayed: number | null,
   bestFullCourseTotal: number | null,
-  audio: AudioPreferences
+  audio: AudioPreferences,
+  storedUnlockedWorlds: WorldId[] = []
 ): ProgressStore {
   const completedHoles = Object.keys(holes)
     .map((k) => Number.parseInt(k, 10))
     .filter((id) => isHoleImplemented(id))
     .sort((a, b) => a - b);
 
+  const completedSet = new Set<number>(completedHoles);
+
   let totalStars = 0;
-  let maxCompleted = 0;
   for (const id of completedHoles) {
     const rec = holes[id];
     if (rec) {
       totalStars += rec.stars;
-      if (id > maxCompleted) maxCompleted = id;
     }
   }
 
-  const derivedUnlocked = Math.min(LEVELS.length, Math.max(1, maxCompleted + 1));
-  const lastUnlockedHole = Math.min(
-    LEVELS.length,
-    Math.max(1, derivedUnlocked, storedLastUnlocked ?? 1)
-  );
+  // World 1 is always unlocked; preserve any already-unlocked playable worlds (never relock!)
+  const unlockedWorldSet = new Set<WorldId>(['sunny-garden']);
+  for (const wid of storedUnlockedWorlds) {
+    if (VALID_WORLD_IDS.has(wid)) {
+      const w = COURSE_WORLDS.find((item) => item.id === wid);
+      if (w && isWorldPlayable(w)) {
+        unlockedWorldSet.add(wid);
+      }
+    }
+  }
+
+  // Derive unlocked worlds from completed worlds and legacy progress saves
+  for (let i = 0; i < COURSE_WORLDS.length; i++) {
+    const world = COURSE_WORLDS[i];
+    if (!isWorldPlayable(world)) continue;
+
+    // If any hole in this world is already completed or unlocked via legacy save, keep world unlocked
+    if (
+      world.holeIds.some((id) => completedSet.has(id)) ||
+      (storedLastUnlocked !== null && storedLastUnlocked >= world.holeIds[0])
+    ) {
+      unlockedWorldSet.add(world.id);
+    }
+
+    // Completing all four holes of a world unlocks the next implemented world (never World 7)
+    const allFourCompleted = world.holeIds.every((id) => completedSet.has(id));
+    if (allFourCompleted) {
+      const next = COURSE_WORLDS[i + 1];
+      if (next && isWorldPlayable(next)) {
+        unlockedWorldSet.add(next.id);
+      }
+    }
+  }
+
+  const unlockedWorlds = COURSE_WORLDS.filter((w) => unlockedWorldSet.has(w.id)).map((w) => w.id);
+
+  // Derive highest unlocked hole while respecting world boundaries
+  let highestUnlocked = Math.min(LEVELS.length, Math.max(1, storedLastUnlocked ?? 1));
+  for (const world of COURSE_WORLDS) {
+    if (!unlockedWorldSet.has(world.id)) continue;
+    // First hole of any unlocked world is unlocked
+    if (isHoleImplemented(world.holeIds[0])) {
+      highestUnlocked = Math.max(highestUnlocked, world.holeIds[0]);
+    }
+    // Within an unlocked world, clearing hole N unlocks hole N+1 inside the same world
+    for (let j = 0; j < world.holeIds.length - 1; j++) {
+      const hid = world.holeIds[j];
+      const nextInWorld = world.holeIds[j + 1];
+      if (completedSet.has(hid) && isHoleImplemented(nextInWorld)) {
+        highestUnlocked = Math.max(highestUnlocked, nextInWorld);
+      }
+    }
+  }
+
+  const lastUnlockedHole = Math.min(LEVELS.length, Math.max(1, highestUnlocked));
   const lastPlayedHole =
     storedLastPlayed !== null
       ? Math.min(lastUnlockedHole, clampPlayableHole(storedLastPlayed))
@@ -208,6 +288,7 @@ function reconcileDerivedFields(
     version: 2,
     holes,
     completedHoles,
+    unlockedWorlds,
     lastUnlockedHole,
     lastPlayedHole,
     totalStars,
@@ -220,7 +301,7 @@ export function createEmptyProgress(
   bestFullCourseTotal: number | null = null,
   audio: AudioPreferences = { ...DEFAULT_AUDIO_PREFS }
 ): ProgressStore {
-  return reconcileDerivedFields({}, 1, 1, bestFullCourseTotal, audio);
+  return reconcileDerivedFields({}, 1, 1, bestFullCourseTotal, audio, ['sunny-garden']);
 }
 
 export function getWorldById(worldId: WorldId): CourseWorld {
@@ -233,15 +314,21 @@ export function getWorldForLevelId(levelId: number): CourseWorld {
   );
 }
 
+export function isWorldUnlocked(progress: ProgressStore, world: CourseWorld): boolean {
+  if (!isWorldPlayable(world)) return false;
+  if (world.id === 'sunny-garden') return true;
+  if (progress.unlockedWorlds.includes(world.id)) return true;
+  return world.holeIds.some((holeId) => Boolean(progress.holes[holeId]));
+}
+
 export function isHoleUnlocked(progress: ProgressStore, holeId: number): boolean {
   if (!isHoleImplemented(holeId)) return false;
   if (holeId === 1) return true;
-  return holeId <= progress.lastUnlockedHole || Boolean(progress.holes[holeId]);
-}
-
-export function isWorldUnlocked(progress: ProgressStore, world: CourseWorld): boolean {
-  if (world.comingSoon) return false;
-  return world.holeIds.some((holeId) => isHoleUnlocked(progress, holeId));
+  if (progress.holes[holeId]) return true;
+  const world = getWorldForLevelId(holeId);
+  if (!isWorldUnlocked(progress, world)) return false;
+  if (holeId === world.holeIds[0]) return true;
+  return holeId <= progress.lastUnlockedHole || Boolean(progress.holes[holeId - 1]);
 }
 
 export function recordLastPlayedHole(
@@ -267,6 +354,8 @@ export function recordHoleCompletion(
   stars: 1 | 2 | 3;
   isNewBest: boolean;
   previousBest: number | null;
+  completedWorld: CourseWorld | null;
+  newlyUnlockedWorld: CourseWorld | null;
 } {
   const safeStrokes = Math.max(1, Math.round(strokes));
   const rawStars = calculateStars(safeStrokes, par, true);
@@ -286,19 +375,49 @@ export function recordHoleCompletion(
     ...progress.holes,
     [levelId]: updatedRecord,
   };
-  const nextUnlocked = Math.min(LEVELS.length, Math.max(progress.lastUnlockedHole, levelId + 1));
+
+  const currentWorld = getWorldForLevelId(levelId);
+  const isWorldEndHole = currentWorld.holeIds[currentWorld.holeIds.length - 1] === levelId;
+  const allFourWorldHolesCleared = currentWorld.holeIds.every((id) => Boolean(nextHoles[id]));
+  const nextWorld = getNextWorld(currentWorld.id);
+
+  const prevUnlockedWorlds = new Set<WorldId>(progress.unlockedWorlds);
+  const nextUnlockedWorlds = new Set<WorldId>(progress.unlockedWorlds);
+
+  // Unlock next world ONLY when all four holes of the current world are completed
+  // and the player has successfully completed the world's final hole.
+  let newlyUnlockedWorld: CourseWorld | null = null;
+  if (isWorldEndHole && allFourWorldHolesCleared && nextWorld && isWorldPlayable(nextWorld)) {
+    if (!prevUnlockedWorlds.has(nextWorld.id)) {
+      newlyUnlockedWorld = nextWorld;
+    }
+    nextUnlockedWorlds.add(nextWorld.id);
+  }
+
+  // Advance lastUnlockedHole within the same world, or into next world once unlocked
+  let candidateLastUnlocked = progress.lastUnlockedHole;
+  if (!isWorldEndHole) {
+    candidateLastUnlocked = Math.max(candidateLastUnlocked, Math.min(LEVELS.length, levelId + 1));
+  } else if (nextWorld && nextUnlockedWorlds.has(nextWorld.id)) {
+    candidateLastUnlocked = Math.max(candidateLastUnlocked, nextWorld.holeIds[0]);
+  }
+
+  const nextProgress = reconcileDerivedFields(
+    nextHoles,
+    candidateLastUnlocked,
+    clampPlayableHole(levelId),
+    progress.bestFullCourseTotal,
+    progress.audio,
+    Array.from(nextUnlockedWorlds)
+  );
 
   return {
-    progress: reconcileDerivedFields(
-      nextHoles,
-      nextUnlocked,
-      clampPlayableHole(levelId),
-      progress.bestFullCourseTotal,
-      progress.audio
-    ),
+    progress: nextProgress,
     stars: earnedStars,
     isNewBest,
     previousBest,
+    completedWorld: isWorldEndHole ? currentWorld : null,
+    newlyUnlockedWorld,
   };
 }
 
@@ -404,9 +523,50 @@ export function getWorldStats(
   };
 }
 
+export function getWorldCompletionSummary(
+  progress: ProgressStore,
+  world: CourseWorld,
+  sessionHoleStrokes: number[] = []
+): WorldCompletionSummary {
+  let totalStrokes = 0;
+  let totalPar = 0;
+  let earnedStars = 0;
+
+  for (const holeId of world.holeIds) {
+    const level = LEVELS.find((l) => l.id === holeId);
+    if (!level) continue;
+    totalPar += level.par;
+    const sessionScore = sessionHoleStrokes[holeId - 1] ?? 0;
+    const saved = progress.holes[holeId];
+    if (sessionScore > 0) {
+      totalStrokes += sessionScore;
+      const runStars = calculateStars(sessionScore, level.par, true);
+      earnedStars += Math.max(saved?.stars ?? 0, runStars === 0 ? 1 : runStars);
+    } else if (saved) {
+      totalStrokes += saved.bestStrokes;
+      earnedStars += saved.stars;
+    }
+  }
+
+  const nextWorld = getNextWorld(world.id);
+  const isNextWorldPlayable = Boolean(nextWorld && isWorldPlayable(nextWorld));
+
+  return {
+    world,
+    totalStrokes,
+    totalPar,
+    earnedStars,
+    maxStars: world.holeIds.length * 3,
+    nextWorld,
+    isNextWorldPlayable,
+  };
+}
+
 export function getOverallProgressStats(progress: ProgressStore): OverallProgressStats {
   let completedHoles = 0;
   let earnedStars = 0;
+  let totalBestStrokes = 0;
+  let completedPar = 0;
   let completedWorlds = 0;
 
   for (const world of PLAYABLE_WORLDS) {
@@ -414,6 +574,15 @@ export function getOverallProgressStats(progress: ProgressStore): OverallProgres
     completedHoles += stats.completedCount;
     earnedStars += stats.earnedStars;
     if (stats.status === 'completed') completedWorlds += 1;
+
+    for (const holeId of world.holeIds) {
+      const rec = progress.holes[holeId];
+      const level = LEVELS.find((l) => l.id === holeId);
+      if (rec && level) {
+        totalBestStrokes += rec.bestStrokes;
+        completedPar += level.par;
+      }
+    }
   }
 
   return {
@@ -421,6 +590,8 @@ export function getOverallProgressStats(progress: ProgressStore): OverallProgres
     totalHoles: LEVELS.length,
     earnedStars,
     maxStars: LEVELS.length * 3,
+    totalBestStrokes,
+    completedPar,
     completedWorlds,
     playableWorlds: PLAYABLE_WORLDS.length,
     totalWorlds: COURSE_WORLDS.length,
@@ -512,12 +683,19 @@ export function deserializeProgress(
           : DEFAULT_AUDIO_PREFS.musicEnabled,
     };
 
+    const storedUnlockedWorlds: WorldId[] = Array.isArray(parsed?.unlockedWorlds)
+      ? parsed.unlockedWorlds.filter(
+          (wid): wid is WorldId => typeof wid === 'string' && VALID_WORLD_IDS.has(wid as WorldId)
+        )
+      : [];
+
     return reconcileDerivedFields(
       cleanHoles,
       storedLastUnlocked,
       storedLastPlayed,
       mergedBest,
-      audio
+      audio,
+      storedUnlockedWorlds
     );
   } catch {
     return createEmptyProgress(legacyBest);
