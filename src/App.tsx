@@ -177,10 +177,10 @@ export default function App() {
     () => getOverallProgressStats(progress),
     [progress]
   );
-  const candyWorldStats = useMemo(() => {
-    const candyWorld = COURSE_WORLDS.find((w) => w.id === 'candy-factory');
-    return candyWorld
-      ? getWorldStats(progress, candyWorld)
+  const clockworkWorldStats = useMemo(() => {
+    const clockworkWorld = COURSE_WORLDS.find((w) => w.id === 'clockwork-carnival');
+    return clockworkWorld
+      ? getWorldStats(progress, clockworkWorld)
       : { earnedStars: 0, maxStars: 12 };
   }, [progress]);
 
@@ -340,7 +340,7 @@ export default function App() {
       }
       saveProgressToStorage(finalProgress);
       setProgress(finalProgress);
-      golfAudio.playVictoryFanfare();
+      golfAudio.playGrandChampionshipFanfare();
       setPhase('victory');
     } else {
       saveProgressToStorage(finalProgress);
@@ -643,14 +643,16 @@ export default function App() {
         />
       )}
 
-      {/* Final Course Victory & Candy Factory Completion Celebration */}
+      {/* Final Course Victory & Grand Championship Celebration (Hole 24) */}
       {phase === 'victory' && (
         <VictoryModal
           holeStrokes={holeStrokes}
           lastHoleStrokes={strokes}
           lastHolePar={currentLevel.par}
-          candyWorldEarnedStars={candyWorldStats.earnedStars}
-          candyWorldMaxStars={candyWorldStats.maxStars}
+          worldEarnedStars={clockworkWorldStats.earnedStars}
+          worldMaxStars={clockworkWorldStats.maxStars}
+          totalEarnedStars={overallProgress.earnedStars}
+          totalMaxStars={overallProgress.maxStars}
           bestTotal={progress.bestFullCourseTotal}
           githubUser={github.user}
           githubConnecting={github.connecting}

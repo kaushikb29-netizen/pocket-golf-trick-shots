@@ -16,7 +16,16 @@ export interface RectWall {
   /** Rotation in radians */
   angle: number;
   /** Visual style */
-  kind?: 'border' | 'wood' | 'bumper-wall' | 'frost-stone' | 'crystal' | 'candy-cane' | 'jellybean';
+  kind?:
+    | 'border'
+    | 'wood'
+    | 'bumper-wall'
+    | 'frost-stone'
+    | 'crystal'
+    | 'candy-cane'
+    | 'jellybean'
+    | 'brass'
+    | 'carnival-stripe';
 }
 
 export interface Bumper {
@@ -27,7 +36,13 @@ export interface Bumper {
   restitution: number;
   color: string;
   accentColor: string;
-  style?: 'classic' | 'snowball' | 'candy';
+  style?: 'classic' | 'snowball' | 'candy' | 'spring';
+  /** Minimum launch speed for spring-powered bumpers */
+  launchSpeed?: number;
+  /** Optional directional launch unit vector X for directional spring launchers */
+  launchDirX?: number;
+  /** Optional directional launch unit vector Y for directional spring launchers */
+  launchDirY?: number;
 }
 
 export interface RotatingObstacle {
@@ -48,6 +63,8 @@ export interface RotatingObstacle {
   angularVelocity: number;
   /** Visual hub radius */
   hubRadius: number;
+  /** Visual mechanism style */
+  style?: 'default' | 'gear' | 'clock-hand';
 }
 
 export interface TurfZone {
@@ -68,7 +85,11 @@ export interface DecorProp {
     | 'frost-rock'
     | 'lollipop'
     | 'jellybean'
-    | 'gumdrop';
+    | 'gumdrop'
+    | 'gear-prop'
+    | 'carnival-tent'
+    | 'clock-dial'
+    | 'balloon';
   x: number;
   y: number;
   scale: number;
@@ -164,7 +185,7 @@ export interface ConveyorBelt {
   targetSpeed?: number;
 }
 
-export type LevelTheme = 'resort' | 'garden' | 'beach' | 'neon' | 'frost' | 'candy';
+export type LevelTheme = 'resort' | 'garden' | 'beach' | 'neon' | 'frost' | 'candy' | 'clockwork';
 
 export interface LevelDefinition {
   id: number;

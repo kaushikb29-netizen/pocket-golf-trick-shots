@@ -231,7 +231,9 @@ function drawGardenIsland(
     54
   );
   ctx.fillStyle =
-    theme === 'candy'
+    theme === 'clockwork'
+      ? 'rgba(253, 224, 71, 0.24)'
+      : theme === 'candy'
       ? 'rgba(255, 241, 246, 0.52)'
       : theme === 'frost'
       ? 'rgba(224, 242, 254, 0.36)'
@@ -245,7 +247,9 @@ function drawGardenIsland(
   // Island drop shadow
   drawRoundedRectPath(ctx, rx + 4, ry + 12, rw, rh, 44);
   ctx.fillStyle =
-    theme === 'candy'
+    theme === 'clockwork'
+      ? 'rgba(24, 12, 46, 0.52)'
+      : theme === 'candy'
       ? 'rgba(124, 45, 76, 0.24)'
       : theme === 'frost'
       ? 'rgba(15, 42, 74, 0.34)'
@@ -257,7 +261,12 @@ function drawGardenIsland(
   // Deck fill tuned per theme
   drawRoundedRectPath(ctx, rx, ry, rw, rh, 44);
   const sandGrad = ctx.createLinearGradient(rx, ry, rx, ry + rh);
-  if (theme === 'candy') {
+  if (theme === 'clockwork') {
+    // Warm gilded ivory & polished carnival midway parquet deck
+    sandGrad.addColorStop(0, '#FFF8E8');
+    sandGrad.addColorStop(0.55, '#F5DFB5');
+    sandGrad.addColorStop(1, '#E2BE7E');
+  } else if (theme === 'candy') {
     if (level.turfStyle === 'chocolate') {
       // Warm vanilla-wafer candy factory floor framing the chocolate pathways
       sandGrad.addColorStop(0, '#FFF8EB');
@@ -288,9 +297,11 @@ function drawGardenIsland(
   }
   ctx.fillStyle = sandGrad;
   ctx.fill();
-  ctx.lineWidth = 4;
+  ctx.lineWidth = theme === 'clockwork' ? 5 : 4;
   ctx.strokeStyle =
-    theme === 'candy'
+    theme === 'clockwork'
+      ? '#D97706'
+      : theme === 'candy'
       ? level.turfStyle === 'chocolate'
         ? '#9A5124'
         : '#DB2777'
@@ -302,6 +313,14 @@ function drawGardenIsland(
       ? '#B9A06B'
       : '#C99B53';
   ctx.stroke();
+
+  if (theme === 'clockwork') {
+    // Crisp dark bronze outer outline & vintage carnival marquee bulbs along deck edges
+    drawRoundedRectPath(ctx, rx - 2.5, ry - 2.5, rw + 5, rh + 5, 46);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#522810';
+    ctx.stroke();
+  }
 
   // Subtle patio stone seams (resort/garden), warm beach sand contours (beach), or soft snowdrifts (frost)
   ctx.save();
@@ -415,6 +434,37 @@ function drawGardenIsland(
       drawRoundedRectPath(ctx, -4.5, -1.8, 9, 3.6, 1.8);
       ctx.fill();
       ctx.restore();
+    }
+  } else if (theme === 'clockwork') {
+    // Subtle brass parquet grid & vintage carnival marquee bulb lights around perimeter
+    ctx.strokeStyle = 'rgba(180, 83, 9, 0.14)';
+    ctx.lineWidth = 1.6;
+    for (let x = rx + 52; x < rx + rw; x += 64) {
+      ctx.beginPath();
+      ctx.moveTo(x, ry);
+      ctx.lineTo(x, ry + rh);
+      ctx.stroke();
+    }
+    for (let y = ry + 52; y < ry + rh; y += 64) {
+      ctx.beginPath();
+      ctx.moveTo(rx, y);
+      ctx.lineTo(rx + rw, y);
+      ctx.stroke();
+    }
+
+    // Warm carnival marquee bulbs spaced cleanly along top & bottom brass trim
+    const bulbColors = ['#FDE047', '#FB7185', '#38BDF8', '#FDE047'];
+    for (let i = 0; i < 14; i++) {
+      const bx = rx + 62 + i * ((rw - 124) / 13);
+      for (const by of [ry + 14, ry + rh - 14]) {
+        ctx.beginPath();
+        ctx.arc(bx, by, 4.2, 0, Math.PI * 2);
+        ctx.fillStyle = bulbColors[i % bulbColors.length];
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#78350F';
+        ctx.stroke();
+      }
     }
   } else if (theme === 'beach') {
     ctx.strokeStyle = 'rgba(196, 134, 48, 0.16)';
@@ -837,6 +887,158 @@ function drawDecorProp(ctx: CanvasRenderingContext2D, prop: DecorProp, time: num
       ctx.fill();
       ctx.restore();
     }
+  } else if (prop.kind === 'gear-prop') {
+    // Decorative brass clockwork cogwheel prop nestled on the carnival midway deck
+    const outerR = 20;
+    const innerR = 14.5;
+    const teeth = 8;
+    const color = prop.color || '#F59E0B';
+
+    ctx.fillStyle = 'rgba(69, 26, 3, 0.22)';
+    ctx.beginPath();
+    ctx.arc(3, 5, outerR, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.rotate(prop.rotation || 0);
+    ctx.beginPath();
+    for (let i = 0; i < teeth * 2; i++) {
+      const a0 = (i / (teeth * 2)) * Math.PI * 2;
+      const a1 = ((i + 0.65) / (teeth * 2)) * Math.PI * 2;
+      const r = i % 2 === 0 ? outerR : innerR;
+      const px0 = Math.cos(a0) * r;
+      const py0 = Math.sin(a0) * r;
+      const px1 = Math.cos(a1) * r;
+      const py1 = Math.sin(a1) * r;
+      if (i === 0) ctx.moveTo(px0, py0);
+      else ctx.lineTo(px0, py0);
+      ctx.lineTo(px1, py1);
+    }
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = '#522810';
+    ctx.stroke();
+
+    // Inner cutout ring & axle bolt
+    ctx.beginPath();
+    ctx.arc(0, 0, 8.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#FEF3C7';
+    ctx.fill();
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = '#78350F';
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 3.6, 0, Math.PI * 2);
+    ctx.fillStyle = '#92400E';
+    ctx.fill();
+    ctx.restore();
+  } else if (prop.kind === 'carnival-tent') {
+    // Top-down striped crimson-and-cream carnival big-top canopy
+    const r = 24;
+    ctx.fillStyle = 'rgba(69, 26, 3, 0.24)';
+    ctx.beginPath();
+    ctx.arc(4, 6, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    const segments = 10;
+    const stripeColor = prop.color || '#DC2626';
+    for (let i = 0; i < segments; i++) {
+      const a0 = (i / segments) * Math.PI * 2;
+      const a1 = ((i + 1) / segments) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, r, a0, a1);
+      ctx.closePath();
+      ctx.fillStyle = i % 2 === 0 ? stripeColor : '#FFFBEB';
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = '#522810';
+    ctx.stroke();
+
+    // Gold brass tent finial crown
+    ctx.beginPath();
+    ctx.arc(0, 0, 6.2, 0, Math.PI * 2);
+    ctx.fillStyle = '#FACC15';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#78350F';
+    ctx.stroke();
+  } else if (prop.kind === 'clock-dial') {
+    // Vintage miniature brass pocket-watch dial
+    ctx.fillStyle = 'rgba(69, 26, 3, 0.22)';
+    ctx.beginPath();
+    ctx.arc(3, 5, 19, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 18.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#D97706';
+    ctx.fill();
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = '#451A03';
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 14, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFFDF5';
+    ctx.fill();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = '#92400E';
+    ctx.stroke();
+
+    // 4 cardinal clock ticks + hands
+    ctx.strokeStyle = '#451A03';
+    ctx.lineWidth = 1.8;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI) / 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 9.5, Math.sin(a) * 9.5);
+      ctx.lineTo(Math.cos(a) * 12.2, Math.sin(a) * 12.2);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -8.5);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(6.5, 3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, 0, 2.2, 0, Math.PI * 2);
+    ctx.fillStyle = '#DC2626';
+    ctx.fill();
+  } else if (prop.kind === 'balloon') {
+    // Festive trio of carnival balloons
+    const balloons = [
+      { x: -8, y: 2, r: 9.5, fill: '#EF4444' },
+      { x: 9, y: 3, r: 9, fill: '#38BDF8' },
+      { x: 0, y: -6, r: 10.5, fill: prop.color || '#FACC15' },
+    ];
+    for (const b of balloons) {
+      ctx.fillStyle = 'rgba(69, 26, 3, 0.18)';
+      ctx.beginPath();
+      ctx.arc(b.x + 2, b.y + 4, b.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.fillStyle = b.fill;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#451A03';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(b.x - b.r * 0.3, b.y - b.r * 0.3, b.r * 0.24, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+      ctx.fill();
+    }
   }
 
   ctx.restore();
@@ -846,6 +1048,7 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
   const isNeon = level.theme === 'neon';
   const isFrost = level.theme === 'frost';
   const isCandy = level.theme === 'candy';
+  const isClockwork = level.theme === 'clockwork';
   const isChocolate = isCandy && level.turfStyle === 'chocolate';
 
   for (const poly of level.turfPolygons) {
@@ -868,6 +1071,8 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
       ? '#7C4426'
       : isCandy
       ? '#3ED49C'
+      : isClockwork
+      ? '#1E9E75'
       : '#38B85C';
     ctx.fill();
 
@@ -883,6 +1088,8 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
       ? '#6B381E'
       : isCandy
       ? '#32BE8A'
+      : isClockwork
+      ? '#188A65'
       : '#2FA752';
     for (let x = 0; x < level.worldWidth + stripeWidth; x += stripeWidth * 2) {
       ctx.fillRect(x, 0, stripeWidth, level.worldHeight);
@@ -897,9 +1104,70 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
       ? 'rgba(42, 18, 8, 0.42)'
       : isCandy
       ? 'rgba(13, 94, 68, 0.25)'
+      : isClockwork
+      ? 'rgba(12, 54, 42, 0.38)'
       : 'rgba(13, 74, 34, 0.28)';
     ctx.lineWidth = 14;
     ctx.stroke();
+
+    if (isClockwork) {
+      // Subtle gilded brass diamond carpet stitching on Clockwork Carnival emerald turf
+      ctx.strokeStyle = 'rgba(253, 224, 71, 0.12)';
+      ctx.lineWidth = 1.6;
+      for (let y = 130; y < 420; y += 64) {
+        ctx.beginPath();
+        ctx.moveTo(90, y);
+        ctx.lineTo(812, y);
+        ctx.stroke();
+      }
+
+      if (level.id === 23) {
+        // Grand vintage brass clock-face medallion painted right beneath the Clock Tower hand
+        ctx.save();
+        ctx.translate(448, 270);
+        ctx.beginPath();
+        ctx.arc(0, 0, 114, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(254, 243, 199, 0.14)';
+        ctx.fill();
+        ctx.lineWidth = 3.5;
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.48)';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 96, 0, Math.PI * 2);
+        ctx.lineWidth = 1.6;
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.34)';
+        ctx.stroke();
+
+        // 12 hour markers around the giant clock dial
+        for (let h = 0; h < 12; h++) {
+          const a = (h / 12) * Math.PI * 2 - Math.PI / 2;
+          const isQuarter = h % 3 === 0;
+          ctx.strokeStyle = isQuarter ? 'rgba(254, 240, 138, 0.72)' : 'rgba(254, 240, 138, 0.38)';
+          ctx.lineWidth = isQuarter ? 3.5 : 2;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * (isQuarter ? 90 : 96), Math.sin(a) * (isQuarter ? 90 : 96));
+          ctx.lineTo(Math.cos(a) * 108, Math.sin(a) * 108);
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else if (level.id === 24) {
+        // Prestige golden championship red-carpet putting runway into the final cup
+        ctx.save();
+        ctx.fillStyle = 'rgba(253, 224, 71, 0.14)';
+        ctx.fillRect(634, 222, 182, 96);
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.56)';
+        ctx.lineWidth = 2.6;
+        ctx.setLineDash([10, 8]);
+        ctx.beginPath();
+        ctx.moveTo(648, 270);
+        ctx.lineTo(748, 270);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      }
+    }
 
     if (isChocolate) {
       // Subtle molded chocolate bar highlights & caramel runway sheen inside the narrow final putting chute
@@ -1053,6 +1321,8 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
     ? '#4E2613'
     : isCandy
     ? '#DB2777'
+    : isClockwork
+    ? '#991B1B'
     : '#258D44';
   ctx.fill();
   ctx.lineWidth = 2.5;
@@ -1064,6 +1334,8 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
     ? '#FBBF24'
     : isCandy
     ? '#FFF1F2'
+    : isClockwork
+    ? '#FACC15'
     : '#7CE696';
   ctx.stroke();
 
@@ -1072,7 +1344,7 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
     ? '#F43F8E'
     : isFrost
     ? '#E0F2FE'
-    : isCandy
+    : isCandy || isClockwork
     ? '#FDE047'
     : '#FFFFFF';
   ctx.strokeStyle = isNeon
@@ -1081,6 +1353,8 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
     ? '#0C4A6E'
     : isCandy
     ? '#6B1839'
+    : isClockwork
+    ? '#451A03'
     : '#1E5B31';
   ctx.lineWidth = 2;
   for (const dy of [-22, 22]) {
@@ -1097,6 +1371,8 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
     ? 'rgba(224, 242, 254, 0.78)'
     : isCandy
     ? 'rgba(255, 245, 248, 0.75)'
+    : isClockwork
+    ? 'rgba(254, 240, 138, 0.85)'
     : 'rgba(255, 255, 255, 0.5)';
   ctx.beginPath();
   ctx.arc(level.tee.x, level.tee.y, 4, 0, Math.PI * 2);
@@ -1818,6 +2094,39 @@ function drawThemeAmbience(
     return;
   }
 
+  if (theme === 'clockwork') {
+    // Warm golden carnival fairy-light sparkles drifting gently around viewport perimeter
+    const carnivalPalette = ['#FDE047', '#F59E0B', '#FB7185', '#38BDF8', '#FFFBEB'];
+    for (let i = 0; i < 22; i++) {
+      const seed = i * 107.3;
+      const x =
+        (((seed * 9.7 + Math.sin(time * 0.8 + i) * 16) % (width + 20)) + (width + 20)) %
+          (width + 20) -
+        10;
+      const y =
+        (((seed * 5.3 - time * (8 + (i % 3) * 3)) % (height + 20)) + (height + 20)) %
+          (height + 20) -
+        10;
+      const nx = x / Math.max(1, width);
+      const ny = y / Math.max(1, height);
+      if (nx > 0.12 && nx < 0.88 && ny > 0.13 && ny < 0.87) continue;
+
+      const twinkle = (Math.sin(time * 2.8 + i * 1.9) + 1) * 0.5;
+      if (twinkle < 0.18) continue;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.globalAlpha = 0.28 + twinkle * 0.52;
+      ctx.fillStyle = carnivalPalette[i % carnivalPalette.length];
+      const r = 2 + twinkle * 2.6;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+    return;
+  }
+
   if (theme === 'neon') {
     // Subtle pulsing neon grid star-beacons around the outer viewport perimeter
     for (let i = 0; i < 18; i++) {
@@ -1898,6 +2207,7 @@ function drawHoleAndFlag(
   const { x, y } = level.hole;
   const r = level.holeRadius;
   const isNeon = level.theme === 'neon';
+  const isClockwork = level.theme === 'clockwork';
 
   ctx.save();
   if (isNeon) {
@@ -1935,16 +2245,16 @@ function drawHoleAndFlag(
     ctx.fillStyle = cupGrad;
     ctx.fill();
   } else {
-    // Subtle light ring around cup lip
+    // Subtle light ring around cup lip (gilded gold glow on Clockwork Carnival)
     ctx.beginPath();
-    ctx.arc(x, y, r + 4, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.arc(x, y, r + 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = isClockwork ? 'rgba(253, 224, 71, 0.34)' : 'rgba(255, 255, 255, 0.25)';
     ctx.fill();
 
-    // White cup rim liner
+    // White or gilded brass cup rim liner
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#E2E8F0';
+    ctx.arc(x, y, r + (isClockwork ? 1 : 0), 0, Math.PI * 2);
+    ctx.fillStyle = isClockwork ? '#FACC15' : '#E2E8F0';
     ctx.fill();
 
     // Deep dark inner cup cavity
@@ -1976,7 +2286,7 @@ function drawHoleAndFlag(
 
   // Flag pole
   const poleTopY = y - 62 - liftY;
-  ctx.strokeStyle = isNeon ? '#E0F2FE' : '#FFFBEB';
+  ctx.strokeStyle = isNeon ? '#E0F2FE' : isClockwork ? '#FDE68A' : '#FFFBEB';
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(x, y - 2 - liftY);
@@ -1994,10 +2304,22 @@ function drawHoleAndFlag(
   ctx.quadraticCurveTo(x + 19, poleTopY + 5 + wave1, x + 36, poleTopY + 13 + wave2);
   ctx.quadraticCurveTo(x + 19, poleTopY + 21 + wave1, x + 1, poleTopY + 25);
   ctx.closePath();
-  ctx.fillStyle = isNeon ? '#F43F8E' : level.theme === 'candy' ? '#EC4899' : '#FF4D4F';
+  ctx.fillStyle = isNeon
+    ? '#F43F8E'
+    : level.theme === 'candy'
+    ? '#EC4899'
+    : isClockwork
+    ? '#F59E0B'
+    : '#FF4D4F';
   ctx.fill();
   ctx.lineWidth = 2;
-  ctx.strokeStyle = isNeon ? '#FBCFE8' : level.theme === 'candy' ? '#831843' : '#7F1D1D';
+  ctx.strokeStyle = isNeon
+    ? '#FBCFE8'
+    : level.theme === 'candy'
+    ? '#831843'
+    : isClockwork
+    ? '#451A03'
+    : '#7F1D1D';
   ctx.stroke();
 
   // Finial ball atop pole
@@ -2268,6 +2590,102 @@ function drawWoodenWall(
     return;
   }
 
+  if (wall.kind === 'brass') {
+    // Gleaming Clockwork Carnival brass mechanical rail & beam
+    ctx.save();
+    ctx.translate(4, 6);
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    ctx.fillStyle = 'rgba(28, 12, 6, 0.34)';
+    ctx.fill();
+    ctx.restore();
+
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    const brassGrad = ctx.createLinearGradient(0, -hh, 0, hh);
+    brassGrad.addColorStop(0, '#FDE68A');
+    brassGrad.addColorStop(0.32, '#F59E0B');
+    brassGrad.addColorStop(0.75, '#B45309');
+    brassGrad.addColorStop(1, '#78350F');
+    ctx.fillStyle = brassGrad;
+    ctx.fill();
+
+    // Specular metallic highlight ridge
+    ctx.save();
+    drawRoundedRectPath(ctx, -hw + 2, -hh + 2, wall.w - 4, wall.h - 4, Math.max(2, radius - 2));
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255, 251, 235, 0.48)';
+    if (wall.w >= wall.h) {
+      ctx.fillRect(-hw, -hh + 2, wall.w, Math.min(4.5, wall.h * 0.28));
+    } else {
+      ctx.fillRect(-hw + 2, -hh, Math.min(4.5, wall.w * 0.28), wall.h);
+    }
+    ctx.restore();
+
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = '#451A03';
+    ctx.stroke();
+
+    // Rivet bolts along brass beam
+    const spanLen = Math.max(wall.w, wall.h);
+    if (spanLen >= 40) {
+      const isH = wall.w >= wall.h;
+      const rivetCount = Math.min(5, Math.max(2, Math.floor(spanLen / 46)));
+      ctx.fillStyle = '#FEF3C7';
+      ctx.strokeStyle = '#451A03';
+      ctx.lineWidth = 1.2;
+      for (let i = 0; i < rivetCount; i++) {
+        const frac = rivetCount === 1 ? 0.5 : i / (rivetCount - 1);
+        const pos = -spanLen / 2 + 12 + frac * (spanLen - 24);
+        ctx.beginPath();
+        ctx.arc(isH ? pos : 0, isH ? 0 : pos, 2.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+    return;
+  }
+
+  if (wall.kind === 'carnival-stripe') {
+    // Festive crimson-and-cream striped carnival bank rail with brass border
+    ctx.save();
+    ctx.translate(4, 6);
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    ctx.fillStyle = 'rgba(28, 12, 6, 0.32)';
+    ctx.fill();
+    ctx.restore();
+
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    ctx.fillStyle = '#FFFBEB';
+    ctx.fill();
+
+    ctx.save();
+    drawRoundedRectPath(ctx, -hw + 1, -hh + 1, wall.w - 2, wall.h - 2, Math.max(2, radius - 1));
+    ctx.clip();
+    const span = wall.w + wall.h + 36;
+    ctx.fillStyle = '#DC2626';
+    for (let s = -span; s <= span; s += 26) {
+      ctx.beginPath();
+      ctx.moveTo(s, -hh - 6);
+      ctx.lineTo(s + 13, -hh - 6);
+      ctx.lineTo(s + 13 - wall.h - 12, hh + 6);
+      ctx.lineTo(s - wall.h - 12, hh + 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.fillRect(-hw, -hh, wall.w, Math.min(4.5, wall.h * 0.28));
+    ctx.restore();
+
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = '#78350F';
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
   // Soft cast drop shadow onto turf
   ctx.save();
   ctx.translate(4, 6);
@@ -2364,15 +2782,112 @@ function drawMovingGates(
 ): void {
   const gates = level.gates;
   if (!gates || gates.length === 0) return;
+  const isClockwork = level.theme === 'clockwork';
 
   for (const gate of gates) {
     const gs = evaluateGateState(gate, elapsedTime);
+    const doorTop = gate.closedY - gate.h / 2 - 2;
+    const doorBottom = gate.closedY + gate.h / 2 + 2;
+
+    if (isClockwork) {
+      const accent = gate.color ?? '#F59E0B';
+      ctx.save();
+
+      // Recessed brass mechanical piston track across the doorway
+      ctx.strokeStyle = 'rgba(69, 26, 3, 0.34)';
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.moveTo(gate.closedX, doorTop);
+      ctx.lineTo(gate.closedX, doorBottom);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(253, 224, 71, 0.55)';
+      ctx.lineWidth = 2.4;
+      ctx.setLineDash([7, 7]);
+      ctx.beginPath();
+      ctx.moveTo(gate.closedX, doorTop + 4);
+      ctx.lineTo(gate.closedX, doorBottom - 4);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Clip sliding brass mechanical gate cleanly inside the doorway opening
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(gate.closedX - 30, doorTop, 60, doorBottom - doorTop);
+      ctx.clip();
+
+      const gx = gs.x - gate.w / 2;
+      const gy = gs.y - gate.h / 2;
+      const radius = Math.min(5, gate.w * 0.4);
+
+      // Gate drop shadow
+      drawRoundedRectPath(ctx, gx + 3, gy + 4, gate.w, gate.h, radius);
+      ctx.fillStyle = 'rgba(30, 12, 4, 0.34)';
+      ctx.fill();
+
+      // Solid brass-and-crimson mechanical barrier bar
+      drawRoundedRectPath(ctx, gx, gy, gate.w, gate.h, radius);
+      const gateGrad = ctx.createLinearGradient(gx, 0, gx + gate.w, 0);
+      gateGrad.addColorStop(0, '#FEF08A');
+      gateGrad.addColorStop(0.5, accent);
+      gateGrad.addColorStop(1, '#92400E');
+      ctx.fillStyle = gateGrad;
+      ctx.fill();
+      ctx.lineWidth = 2.6;
+      ctx.strokeStyle = '#451A03';
+      ctx.stroke();
+
+      // Diagonal hazard brass/crimson chevron stripes along sliding piston
+      ctx.save();
+      drawRoundedRectPath(ctx, gx + 2, gy + 2, gate.w - 4, gate.h - 4, Math.max(2, radius - 1));
+      ctx.clip();
+      ctx.fillStyle = 'rgba(120, 53, 15, 0.35)';
+      for (let sy = gy - 12; sy <= gy + gate.h + 12; sy += 18) {
+        ctx.beginPath();
+        ctx.moveTo(gx, sy);
+        ctx.lineTo(gx + gate.w, sy + 7);
+        ctx.lineTo(gx + gate.w, sy + 14);
+        ctx.lineTo(gx, sy + 7);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Brass gear-rivet studs down center
+      ctx.fillStyle = '#FFFDF5';
+      ctx.strokeStyle = '#451A03';
+      ctx.lineWidth = 1.4;
+      for (let dy = -gate.h * 0.34; dy <= gate.h * 0.34; dy += gate.h * 0.34) {
+        ctx.beginPath();
+        ctx.arc(gs.x, gs.y + dy, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Copper piston housing caps mounted on the doorway edges
+      for (const capY of [doorTop, doorBottom]) {
+        drawRoundedRectPath(ctx, gate.closedX - 14, capY - 5, 28, 10, 3.5);
+        ctx.fillStyle = '#B45309';
+        ctx.fill();
+        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = '#451A03';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(gate.closedX, capY, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = gs.openAmount > 0.72 ? '#34D399' : '#EF4444';
+        ctx.fill();
+      }
+
+      ctx.restore();
+      continue;
+    }
+
     const color = gate.color ?? '#38BDF8';
     const isPink = color.toLowerCase().includes('f43f') || color.toLowerCase().includes('ec48');
     const softHalo = isPink ? 'rgba(244, 63, 142, 0.24)' : 'rgba(56, 189, 248, 0.24)';
     const midHalo = isPink ? 'rgba(244, 63, 142, 0.45)' : 'rgba(56, 189, 248, 0.45)';
-    const doorTop = gate.closedY - gate.h / 2 - 2;
-    const doorBottom = gate.closedY + gate.h / 2 + 2;
 
     ctx.save();
     // Subtle laser emitter floor track across the closed doorway so timing window is crystal clear
@@ -2782,6 +3297,121 @@ function drawBumper(
     return;
   }
 
+  if (bumper.style === 'spring') {
+    const springRecoil = 1 + Math.sin(pulse * Math.PI * 2.4) * 0.16 * pulse;
+    ctx.scale(springRecoil, springRecoil);
+
+    // Warm shadow
+    ctx.beginPath();
+    ctx.arc(4, 6, bumper.radius + 1, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(28, 12, 4, 0.36)';
+    ctx.fill();
+
+    // Golden spring-release shock ring on impact
+    if (pulse > 0.04) {
+      ctx.beginPath();
+      ctx.arc(0, 0, bumper.radius + 7 + pulse * 10, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(253, 224, 71, ${(pulse * 0.9).toFixed(2)})`;
+      ctx.lineWidth = 3.2;
+      ctx.stroke();
+    }
+
+    // Coiled metallic steel spring outer collar
+    ctx.beginPath();
+    ctx.arc(0, 0, bumper.radius, 0, Math.PI * 2);
+    ctx.fillStyle = '#D97706';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#451A03';
+    ctx.stroke();
+
+    // Stylized coiled spring zigzag ring around perimeter
+    ctx.beginPath();
+    const coils = 16;
+    for (let i = 0; i <= coils; i++) {
+      const a = (i / coils) * Math.PI * 2;
+      const r = i % 2 === 0 ? bumper.radius - 1.5 : bumper.radius * 0.72;
+      const px = Math.cos(a) * r;
+      const py = Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = '#FEF3C7';
+    ctx.lineWidth = 2.4;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Inner bouncy spring plunger pad
+    ctx.beginPath();
+    ctx.arc(0, 0, bumper.radius * 0.72, 0, Math.PI * 2);
+    const padGrad = ctx.createRadialGradient(
+      -bumper.radius * 0.18,
+      -bumper.radius * 0.2,
+      2,
+      0,
+      0,
+      bumper.radius * 0.72
+    );
+    padGrad.addColorStop(0, bumper.accentColor || '#FDE047');
+    padGrad.addColorStop(0.65, bumper.color || '#EF4444');
+    padGrad.addColorStop(1, '#991B1B');
+    ctx.fillStyle = padGrad;
+    ctx.fill();
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = '#451A03';
+    ctx.stroke();
+
+    if (bumper.launchDirX !== undefined && bumper.launchDirY !== undefined) {
+      // Clear glowing directional launch chevron showing spring firing direction
+      const dirAngle = Math.atan2(bumper.launchDirY, bumper.launchDirX);
+      ctx.save();
+      ctx.rotate(dirAngle);
+      ctx.beginPath();
+      ctx.moveTo(-6.5, -6.5);
+      ctx.lineTo(5.5, 0);
+      ctx.lineTo(-6.5, 6.5);
+      ctx.lineTo(-2.5, 0);
+      ctx.closePath();
+      ctx.fillStyle = '#FFFDF5';
+      ctx.fill();
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = '#451A03';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+
+      // Small outer launch pointer pip at rim
+      ctx.beginPath();
+      ctx.arc(bumper.radius * 0.85, 0, 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = '#FDE047';
+      ctx.fill();
+      ctx.strokeStyle = '#451A03';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      // Omnidirectional spring starburst emblem
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const r = i % 2 === 0 ? bumper.radius * 0.44 : bumper.radius * 0.2;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#FFFDF5';
+      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = '#451A03';
+      ctx.stroke();
+    }
+
+    ctx.restore();
+    return;
+  }
+
   if (isNeon) {
     // Lightweight neon halo for bumpers on futuristic courses
     ctx.beginPath();
@@ -2834,6 +3464,9 @@ function drawRotatingObstacle(
 ): void {
   const isFrost = theme === 'frost';
   const isCandy = theme === 'candy';
+  const isClockwork = theme === 'clockwork';
+  const isGear = rotator.style === 'gear';
+  const isClockHand = rotator.style === 'clock-hand';
   ctx.save();
   ctx.translate(rotator.cx, rotator.cy);
 
@@ -2845,11 +3478,116 @@ function drawRotatingObstacle(
     ? 'rgba(12, 74, 110, 0.28)'
     : isCandy
     ? 'rgba(255, 241, 242, 0.34)'
+    : isClockwork
+    ? 'rgba(254, 240, 138, 0.34)'
     : 'rgba(255, 255, 255, 0.22)';
   ctx.lineWidth = 2;
   ctx.setLineDash([8, 8]);
   ctx.stroke();
   ctx.restore();
+
+  if (isGear) {
+    // Authentic rotating brass cogwheel whose outer teeth align 1:1 with the physical rotating paddles
+    const halfLen = rotator.length / 2;
+    const innerRimR = halfLen * 0.62;
+
+    // Ground shadow
+    ctx.save();
+    ctx.translate(4, 6);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.arc(0, 0, innerRimR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(28, 12, 4, 0.28)';
+    ctx.fill();
+    for (let b = 0; b < rotator.blades; b++) {
+      ctx.save();
+      ctx.rotate((b * Math.PI) / rotator.blades);
+      drawRoundedRectPath(ctx, -halfLen, -rotator.thickness / 2, rotator.length, rotator.thickness, 6);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+
+    ctx.save();
+    ctx.rotate(angle);
+
+    // Inner brass gear ring connecting the spokes
+    ctx.beginPath();
+    ctx.arc(0, 0, innerRimR, 0, Math.PI * 2);
+    const rimGrad = ctx.createRadialGradient(-8, -8, 4, 0, 0, innerRimR);
+    rimGrad.addColorStop(0, '#FDE68A');
+    rimGrad.addColorStop(0.55, '#D97706');
+    rimGrad.addColorStop(1, '#92400E');
+    ctx.fillStyle = rimGrad;
+    ctx.fill();
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = '#451A03';
+    ctx.stroke();
+
+    // Hollowed brass wheel cutouts between spokes for unmistakable cogwheel silhouette
+    const spokes = rotator.blades * 2;
+    for (let s = 0; s < spokes; s++) {
+      const aMid = (s / spokes) * Math.PI * 2 + Math.PI / spokes;
+      const holeDist = innerRimR * 0.62;
+      ctx.beginPath();
+      ctx.arc(Math.cos(aMid) * holeDist, Math.sin(aMid) * holeDist, innerRimR * 0.19, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(24, 138, 101, 0.78)';
+      ctx.fill();
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = '#451A03';
+      ctx.stroke();
+    }
+
+    // Physical colliding toothed brass blades
+    for (let b = 0; b < rotator.blades; b++) {
+      const bladeAngle = (b * Math.PI) / rotator.blades;
+      ctx.save();
+      ctx.rotate(bladeAngle);
+      const hw = halfLen;
+      const hh = rotator.thickness / 2;
+
+      drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 5);
+      const toothGrad = ctx.createLinearGradient(0, -hh, 0, hh);
+      toothGrad.addColorStop(0, '#FEF08A');
+      toothGrad.addColorStop(0.45, '#F59E0B');
+      toothGrad.addColorStop(1, '#B45309');
+      ctx.fillStyle = toothGrad;
+      ctx.fill();
+
+      // Gleaming brass tooth tips for crystal-clear motion visibility
+      ctx.fillStyle = '#FFFBEB';
+      ctx.fillRect(-hw + 3, -hh + 2, 10, rotator.thickness - 4);
+      ctx.fillRect(hw - 13, -hh + 2, 10, rotator.thickness - 4);
+
+      drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 5);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = '#451A03';
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.restore();
+
+    // Center riveted copper hub cap
+    ctx.beginPath();
+    ctx.arc(0, 0, rotator.hubRadius, 0, Math.PI * 2);
+    ctx.fillStyle = '#B45309';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#451A03';
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(0, 0, rotator.hubRadius * 0.52, 0, Math.PI * 2);
+    ctx.fillStyle = '#FDE047';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#451A03';
+    ctx.stroke();
+
+    ctx.restore();
+    return;
+  }
 
   // Draw each rotating paddle blade
   for (let b = 0; b < rotator.blades; b++) {
@@ -2868,11 +3606,37 @@ function drawRotatingObstacle(
       ? 'rgba(15, 42, 74, 0.28)'
       : isCandy
       ? 'rgba(92, 24, 52, 0.32)'
+      : isClockHand
+      ? 'rgba(28, 12, 4, 0.34)'
       : 'rgba(15, 45, 25, 0.26)';
     ctx.fill();
     ctx.restore();
 
-    if (isCandy) {
+    if (isClockHand) {
+      // Ornate gilded clock-tower hand with ivory filigree stripe and crimson pointer tips
+      drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 7);
+      const handGrad = ctx.createLinearGradient(0, -hh, 0, hh);
+      handGrad.addColorStop(0, '#FEF08A');
+      handGrad.addColorStop(0.5, '#F59E0B');
+      handGrad.addColorStop(1, '#92400E');
+      ctx.fillStyle = handGrad;
+      ctx.fill();
+
+      ctx.save();
+      drawRoundedRectPath(ctx, -hw + 2, -hh + 2, rotator.length - 4, rotator.thickness - 4, 5);
+      ctx.clip();
+      ctx.fillStyle = '#FFFDF5';
+      ctx.fillRect(-hw + 18, -3, rotator.length - 36, 6);
+      ctx.fillStyle = '#DC2626';
+      ctx.fillRect(-hw, -hh, 18, rotator.thickness);
+      ctx.fillRect(hw - 18, -hh, 18, rotator.thickness);
+      ctx.restore();
+
+      drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 7);
+      ctx.lineWidth = 2.6;
+      ctx.strokeStyle = '#451A03';
+      ctx.stroke();
+    } else if (isCandy) {
       // Rotating candy-cane striped spinner bar
       drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
       ctx.fillStyle = '#FFFDF9';
@@ -2937,7 +3701,7 @@ function drawRotatingObstacle(
     ctx.restore();
   }
 
-  // Center windmill / peppermint hub cap
+  // Center windmill / peppermint / clockwork hub cap
   ctx.beginPath();
   ctx.arc(3, 5, rotator.hubRadius, 0, Math.PI * 2);
   ctx.fillStyle = isFrost
@@ -2949,10 +3713,10 @@ function drawRotatingObstacle(
 
   ctx.beginPath();
   ctx.arc(0, 0, rotator.hubRadius, 0, Math.PI * 2);
-  ctx.fillStyle = isFrost ? '#0284C7' : isCandy ? '#EC4899' : '#EF4444';
+  ctx.fillStyle = isFrost ? '#0284C7' : isCandy ? '#EC4899' : isClockHand ? '#DC2626' : '#EF4444';
   ctx.fill();
   ctx.lineWidth = 3;
-  ctx.strokeStyle = isFrost ? '#0C4A6E' : isCandy ? '#7F1D3A' : '#522011';
+  ctx.strokeStyle = isFrost ? '#0C4A6E' : isCandy ? '#7F1D3A' : isClockHand ? '#451A03' : '#522011';
   ctx.stroke();
 
   ctx.beginPath();
@@ -3371,7 +4135,12 @@ function drawStaticCourseLayer(
 ): void {
   const theme = level.theme ?? 'resort';
   const grad = ctx.createLinearGradient(0, 0, transform.width, transform.height);
-  if (theme === 'candy') {
+  if (theme === 'clockwork') {
+    // Royal twilight carnival sky warming into golden brass amber
+    grad.addColorStop(0, '#271758');
+    grad.addColorStop(0.55, '#4A2073');
+    grad.addColorStop(1, '#85381A');
+  } else if (theme === 'candy') {
     grad.addColorStop(0, '#F9B4D2');
     grad.addColorStop(0.5, '#FDE6B5');
     grad.addColorStop(1, '#B9F3DC');
@@ -3401,7 +4170,23 @@ function drawStaticCourseLayer(
 
   // Subtle decorative background pattern matched to theme
   ctx.save();
-  if (theme === 'candy') {
+  if (theme === 'clockwork') {
+    // Festive subtle golden carnival diamond harlequin trellis
+    ctx.strokeStyle = 'rgba(253, 224, 71, 0.1)';
+    ctx.lineWidth = 1.5;
+    const step = 72;
+    ctx.beginPath();
+    for (let y = -step; y < transform.height + step; y += step) {
+      for (let x = -step; x < transform.width + step; x += step) {
+        ctx.moveTo(x, y - 14);
+        ctx.lineTo(x + 14, y);
+        ctx.lineTo(x, y + 14);
+        ctx.lineTo(x - 14, y);
+        ctx.closePath();
+      }
+    }
+    ctx.stroke();
+  } else if (theme === 'candy') {
     // Soft pastel polka dots across the candy-factory backdrop
     ctx.fillStyle = 'rgba(255, 255, 255, 0.24)';
     const step = 64;
@@ -3527,7 +4312,9 @@ export function renderFrame(
     }
     if (shakeX !== 0 || shakeY !== 0) {
       ctx.fillStyle =
-        level.theme === 'candy'
+        level.theme === 'clockwork'
+          ? '#271758'
+          : level.theme === 'candy'
           ? '#F9B4D2'
           : level.theme === 'neon'
           ? '#0D0624'

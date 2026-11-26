@@ -2836,4 +2836,479 @@ export const LEVELS: LevelDefinition[] = [
       { kind: 'jellybean', x: 468, y: 486, scale: 0.9 },
     ],
   },
+
+  // =========================================================================
+  // HOLE 21: GEAR GARDEN (World 6 — Clockwork Carnival, Par 4)
+  // Colourful mechanical course with interlocking rotating brass gears and
+  // brass obstacles framing a rhythmic carnival fairway.
+  // =========================================================================
+  {
+    id: 21,
+    name: 'Gear Garden',
+    subtitle: 'Weave through counter-rotating brass gears and carnival rails',
+    par: 4,
+    worldWidth: 900,
+    worldHeight: 540,
+    theme: 'clockwork',
+    tee: { x: 148, y: 270 },
+    hole: { x: 748, y: 270 },
+    holeRadius: 17,
+    turfPolygons: [
+      {
+        points: [
+          { x: 90, y: 102 },
+          { x: 810, y: 102 },
+          { x: 810, y: 438 },
+          { x: 90, y: 438 },
+        ],
+      },
+    ],
+    walls: [
+      // Outer brass carnival frame
+      { id: 'l21-top', x: 450, y: 91, w: 742, h: 22, angle: 0, kind: 'brass' },
+      { id: 'l21-bot', x: 450, y: 449, w: 742, h: 22, angle: 0, kind: 'brass' },
+      { id: 'l21-left', x: 79, y: 270, w: 22, h: 358, angle: 0, kind: 'brass' },
+      { id: 'l21-right', x: 821, y: 270, w: 22, h: 358, angle: 0, kind: 'brass' },
+      // Chamfered carnival-stripe corner bank rails
+      { id: 'l21-ctl', x: 116, y: 128, w: 72, h: 18, angle: -Math.PI / 4, kind: 'carnival-stripe' },
+      { id: 'l21-cbl', x: 116, y: 412, w: 72, h: 18, angle: Math.PI / 4, kind: 'carnival-stripe' },
+      { id: 'l21-ctr', x: 784, y: 128, w: 72, h: 18, angle: Math.PI / 4, kind: 'carnival-stripe' },
+      { id: 'l21-cbr', x: 784, y: 412, w: 72, h: 18, angle: -Math.PI / 4, kind: 'carnival-stripe' },
+      // Alternating brass baffles weaving around the three rotating gears
+      { id: 'l21-baffle-1', x: 276, y: 372, w: 22, h: 124, angle: 0, kind: 'brass' },
+      { id: 'l21-baffle-2', x: 450, y: 158, w: 22, h: 112, angle: 0, kind: 'brass' },
+      { id: 'l21-baffle-3', x: 624, y: 372, w: 22, h: 124, angle: 0, kind: 'brass' },
+      // Angled brass accent reflectors near tee & approach
+      { id: 'l21-deflect-1', x: 204, y: 164, w: 54, h: 16, angle: -0.45, kind: 'brass' },
+      { id: 'l21-deflect-2', x: 696, y: 376, w: 54, h: 16, angle: -0.45, kind: 'brass' },
+    ],
+    bumpers: [],
+    rotators: [
+      {
+        id: 'l21-gear-1',
+        cx: 306,
+        cy: 206,
+        length: 112,
+        thickness: 16,
+        blades: 2,
+        initialAngle: 0.25,
+        angularVelocity: 0.78,
+        hubRadius: 17,
+        style: 'gear',
+      },
+      {
+        id: 'l21-gear-2',
+        cx: 450,
+        cy: 326,
+        length: 116,
+        thickness: 16,
+        blades: 2,
+        initialAngle: 0.7,
+        angularVelocity: -0.84,
+        hubRadius: 18,
+        style: 'gear',
+      },
+      {
+        id: 'l21-gear-3',
+        cx: 594,
+        cy: 206,
+        length: 112,
+        thickness: 16,
+        blades: 2,
+        initialAngle: 0.15,
+        angularVelocity: 0.78,
+        hubRadius: 17,
+        style: 'gear',
+      },
+    ],
+    decor: [
+      { kind: 'carnival-tent', x: 96, y: 50, scale: 0.88, color: '#DC2626' },
+      { kind: 'gear-prop', x: 256, y: 50, scale: 0.94, color: '#D97706' },
+      { kind: 'clock-dial', x: 450, y: 50, scale: 0.86 },
+      { kind: 'gear-prop', x: 644, y: 50, scale: 0.94, color: '#F59E0B' },
+      { kind: 'carnival-tent', x: 804, y: 50, scale: 0.88, color: '#2563EB' },
+      { kind: 'balloon', x: 146, y: 492, scale: 0.9, color: '#EF4444' },
+      { kind: 'gear-prop', x: 344, y: 490, scale: 0.92, color: '#D97706' },
+      { kind: 'gear-prop', x: 556, y: 490, scale: 0.92, color: '#F59E0B' },
+      { kind: 'balloon', x: 754, y: 492, scale: 0.9, color: '#FACC15' },
+    ],
+  },
+
+  // =========================================================================
+  // HOLE 22: SPRING SHOT (World 6 — Clockwork Carnival, Par 4)
+  // Introduces spring-powered bumpers that launch the ball across a divided
+  // brass carnival arena in exciting pinball-style trick trajectories.
+  // =========================================================================
+  {
+    id: 22,
+    name: 'Spring Shot',
+    subtitle: 'Bounce off spring-powered launchers to soar over the brass divide',
+    par: 4,
+    worldWidth: 900,
+    worldHeight: 540,
+    theme: 'clockwork',
+    tee: { x: 148, y: 376 },
+    hole: { x: 746, y: 374 },
+    holeRadius: 17,
+    turfPolygons: [
+      {
+        points: [
+          { x: 88, y: 100 },
+          { x: 812, y: 100 },
+          { x: 812, y: 440 },
+          { x: 88, y: 440 },
+        ],
+      },
+    ],
+    walls: [
+      // Outer brass frame
+      { id: 'l22-top', x: 450, y: 89, w: 746, h: 22, angle: 0, kind: 'brass' },
+      { id: 'l22-bot', x: 450, y: 451, w: 746, h: 22, angle: 0, kind: 'brass' },
+      { id: 'l22-left', x: 77, y: 270, w: 22, h: 362, angle: 0, kind: 'brass' },
+      { id: 'l22-right', x: 823, y: 270, w: 22, h: 362, angle: 0, kind: 'brass' },
+      // Upper corner carnival-stripe reflectors
+      { id: 'l22-ctl', x: 114, y: 126, w: 68, h: 18, angle: -Math.PI / 4, kind: 'carnival-stripe' },
+      { id: 'l22-ctr', x: 786, y: 126, w: 68, h: 18, angle: Math.PI / 4, kind: 'carnival-stripe' },
+      // Central brass spine separating tee bay from cup bay (112px upper bridge)
+      { id: 'l22-spine', x: 450, y: 326, w: 26, h: 228, angle: 0, kind: 'brass' },
+      // Left carnival shelf framing the vertical spring launch lane
+      { id: 'l22-shelf-l', x: 136, y: 258, w: 94, h: 18, angle: 0, kind: 'carnival-stripe' },
+      // Right angled brass deflector guiding upper-right spring shots toward the cup
+      { id: 'l22-deflect-r', x: 602, y: 266, w: 96, h: 18, angle: -0.34, kind: 'brass' },
+    ],
+    bumpers: [
+      // Spring 1: Launches tee shots straight up toward the upper bridge launcher
+      {
+        id: 'l22-spring-1',
+        x: 284,
+        y: 368,
+        radius: 25,
+        restitution: 1.25,
+        color: '#DC2626',
+        accentColor: '#FACC15',
+        style: 'spring',
+        launchSpeed: 470,
+        launchDirX: -0.14,
+        launchDirY: -0.99,
+      },
+      // Spring 2: Upper-left spring catapult launching cleanly across the bridge
+      {
+        id: 'l22-spring-2',
+        x: 258,
+        y: 152,
+        radius: 25,
+        restitution: 1.25,
+        color: '#F59E0B',
+        accentColor: '#FFFDF5',
+        style: 'spring',
+        launchSpeed: 520,
+        launchDirX: 0.99,
+        launchDirY: 0.12,
+      },
+      // Spring 3: Upper-right redirector blasting balls down toward the final green
+      {
+        id: 'l22-spring-3',
+        x: 704,
+        y: 156,
+        radius: 25,
+        restitution: 1.25,
+        color: '#DC2626',
+        accentColor: '#FACC15',
+        style: 'spring',
+        launchSpeed: 440,
+        launchDirX: 0.16,
+        launchDirY: 0.99,
+      },
+      // Spring 4: Lower-right pinball booster launching straight toward the cup
+      {
+        id: 'l22-spring-4',
+        x: 546,
+        y: 376,
+        radius: 23,
+        restitution: 1.22,
+        color: '#0EA5E9',
+        accentColor: '#FACC15',
+        style: 'spring',
+        launchSpeed: 400,
+        launchDirX: 0.99,
+        launchDirY: -0.04,
+      },
+    ],
+    rotators: [],
+    decor: [
+      { kind: 'balloon', x: 112, y: 54, scale: 0.92, color: '#EF4444' },
+      { kind: 'carnival-tent', x: 266, y: 48, scale: 0.88, color: '#DC2626' },
+      { kind: 'gear-prop', x: 450, y: 50, scale: 0.96, color: '#F59E0B' },
+      { kind: 'carnival-tent', x: 634, y: 48, scale: 0.88, color: '#2563EB' },
+      { kind: 'balloon', x: 788, y: 54, scale: 0.92, color: '#38BDF8' },
+      { kind: 'gear-prop', x: 196, y: 492, scale: 0.9, color: '#D97706' },
+      { kind: 'clock-dial', x: 450, y: 492, scale: 0.84 },
+      { kind: 'gear-prop', x: 704, y: 492, scale: 0.9, color: '#F59E0B' },
+    ],
+  },
+
+  // =========================================================================
+  // HOLE 23: CLOCK TOWER (World 6 — Clockwork Carnival, Par 5)
+  // Mechanical clock-tower hall featuring two synchronized moving brass gates,
+  // a giant sweeping ornate clock hand, and counter-spinning escapement gears.
+  // =========================================================================
+  {
+    id: 23,
+    name: 'Clock Tower',
+    subtitle: 'Time your putts past sliding brass gates and the sweeping clock hand',
+    par: 5,
+    worldWidth: 900,
+    worldHeight: 540,
+    theme: 'clockwork',
+    tee: { x: 142, y: 270 },
+    hole: { x: 756, y: 270 },
+    holeRadius: 17,
+    turfPolygons: [
+      {
+        points: [
+          { x: 86, y: 102 },
+          { x: 814, y: 102 },
+          { x: 814, y: 438 },
+          { x: 86, y: 438 },
+        ],
+      },
+    ],
+    walls: [
+      // Outer brass tower walls
+      { id: 'l23-top', x: 450, y: 91, w: 748, h: 22, angle: 0, kind: 'brass' },
+      { id: 'l23-bot', x: 450, y: 449, w: 748, h: 22, angle: 0, kind: 'brass' },
+      { id: 'l23-left', x: 75, y: 270, w: 22, h: 358, angle: 0, kind: 'brass' },
+      { id: 'l23-right', x: 825, y: 270, w: 22, h: 358, angle: 0, kind: 'brass' },
+      // Angled carnival-stripe bay corners
+      { id: 'l23-ctl', x: 112, y: 128, w: 66, h: 16, angle: -Math.PI / 4, kind: 'carnival-stripe' },
+      { id: 'l23-cbl', x: 112, y: 412, w: 66, h: 16, angle: Math.PI / 4, kind: 'carnival-stripe' },
+      { id: 'l23-ctr', x: 788, y: 128, w: 66, h: 16, angle: Math.PI / 4, kind: 'carnival-stripe' },
+      { id: 'l23-cbr', x: 788, y: 412, w: 66, h: 16, angle: -Math.PI / 4, kind: 'carnival-stripe' },
+      // First brass gate bulkhead (136px central doorway at y = 202..338)
+      { id: 'l23-bulk1-top', x: 286, y: 152, w: 24, h: 100, angle: 0, kind: 'brass' },
+      { id: 'l23-bulk1-bot', x: 286, y: 388, w: 24, h: 100, angle: 0, kind: 'brass' },
+      // Second brass gate bulkhead (136px central doorway at y = 202..338)
+      { id: 'l23-bulk2-top', x: 612, y: 152, w: 24, h: 100, angle: 0, kind: 'brass' },
+      { id: 'l23-bulk2-bot', x: 612, y: 388, w: 24, h: 100, angle: 0, kind: 'brass' },
+    ],
+    bumpers: [],
+    gates: [
+      {
+        id: 'l23-gate-1',
+        closedX: 286,
+        closedY: 270,
+        openX: 286,
+        openY: 144,
+        w: 20,
+        h: 120,
+        period: 4.4,
+        phaseOffset: 0,
+        color: '#F59E0B',
+      },
+      {
+        id: 'l23-gate-2',
+        closedX: 612,
+        closedY: 270,
+        openX: 612,
+        openY: 396,
+        w: 20,
+        h: 120,
+        period: 4.8,
+        phaseOffset: Math.PI,
+        color: '#DC2626',
+      },
+    ],
+    rotators: [
+      // Giant ornate gilded clock-tower hand centered over the inlaid brass clock dial
+      {
+        id: 'l23-clock-hand',
+        cx: 448,
+        cy: 270,
+        length: 196,
+        thickness: 18,
+        blades: 1,
+        initialAngle: 0.4,
+        angularVelocity: 0.7,
+        hubRadius: 18,
+        style: 'clock-hand',
+      },
+      // Counter-spinning brass escapement gears flanking the clock chamber
+      {
+        id: 'l23-gear-ur',
+        cx: 544,
+        cy: 162,
+        length: 72,
+        thickness: 14,
+        blades: 2,
+        initialAngle: 0.2,
+        angularVelocity: -1.12,
+        hubRadius: 13,
+        style: 'gear',
+      },
+      {
+        id: 'l23-gear-ll',
+        cx: 358,
+        cy: 378,
+        length: 72,
+        thickness: 14,
+        blades: 2,
+        initialAngle: 0.55,
+        angularVelocity: -1.12,
+        hubRadius: 13,
+        style: 'gear',
+      },
+    ],
+    decor: [
+      { kind: 'clock-dial', x: 142, y: 50, scale: 0.88 },
+      { kind: 'gear-prop', x: 320, y: 50, scale: 0.92, color: '#D97706' },
+      { kind: 'carnival-tent', x: 450, y: 48, scale: 0.9, color: '#DC2626' },
+      { kind: 'gear-prop', x: 580, y: 50, scale: 0.92, color: '#F59E0B' },
+      { kind: 'clock-dial', x: 758, y: 50, scale: 0.88 },
+      { kind: 'balloon', x: 158, y: 492, scale: 0.9, color: '#FACC15' },
+      { kind: 'gear-prop', x: 450, y: 492, scale: 0.96, color: '#D97706' },
+      { kind: 'balloon', x: 742, y: 492, scale: 0.9, color: '#EF4444' },
+    ],
+  },
+
+  // =========================================================================
+  // HOLE 24: THE GRAND FINALE (World 6 — Clockwork Carnival, Par 5)
+  // The ultimate championship course uniting rotating brass gears, directional
+  // spring launchers, a timed mechanical gate, and a gilded precision runway.
+  // =========================================================================
+  {
+    id: 24,
+    name: 'The Grand Finale',
+    subtitle: 'Conquer gears, spring bumpers, the brass gate & gilded chute for the crown',
+    par: 5,
+    worldWidth: 900,
+    worldHeight: 540,
+    theme: 'clockwork',
+    tee: { x: 136, y: 374 },
+    hole: { x: 772, y: 270 },
+    holeRadius: 17,
+    turfPolygons: [
+      {
+        points: [
+          { x: 84, y: 98 },
+          { x: 620, y: 98 },
+          { x: 620, y: 218 },
+          { x: 818, y: 218 },
+          { x: 818, y: 322 },
+          { x: 620, y: 322 },
+          { x: 620, y: 442 },
+          { x: 84, y: 442 },
+        ],
+      },
+    ],
+    walls: [
+      // Main grand carnival arena perimeter
+      { id: 'l24-top', x: 352, y: 87, w: 558, h: 22, angle: 0, kind: 'brass' },
+      { id: 'l24-bot', x: 352, y: 453, w: 558, h: 22, angle: 0, kind: 'brass' },
+      { id: 'l24-left', x: 73, y: 270, w: 22, h: 366, angle: 0, kind: 'brass' },
+      // Stepped brass transitions into the gilded championship chute
+      { id: 'l24-step-top', x: 631, y: 152, w: 22, h: 132, angle: 0, kind: 'brass' },
+      { id: 'l24-step-bot', x: 631, y: 388, w: 22, h: 132, angle: 0, kind: 'brass' },
+      // Gilded final championship chute perimeter
+      { id: 'l24-chute-top-wall', x: 724, y: 207, w: 208, h: 22, angle: 0, kind: 'brass' },
+      { id: 'l24-chute-bot-wall', x: 724, y: 333, w: 208, h: 22, angle: 0, kind: 'brass' },
+      { id: 'l24-chute-end', x: 829, y: 270, w: 22, h: 148, angle: 0, kind: 'brass' },
+      // Carnival-stripe corner banks inside main arena
+      { id: 'l24-ctl', x: 110, y: 124, w: 64, h: 16, angle: -Math.PI / 4, kind: 'carnival-stripe' },
+      { id: 'l24-ctr', x: 594, y: 124, w: 62, h: 16, angle: Math.PI / 4, kind: 'carnival-stripe' },
+      // Lower brass baffle separating tee spring zone from right gear pit
+      { id: 'l24-baffle-bot', x: 318, y: 384, w: 20, h: 114, angle: 0, kind: 'brass' },
+      // Timed gate bulkhead guarding the approach to the championship runway
+      { id: 'l24-gate-post-top', x: 556, y: 150, w: 22, h: 104, angle: 0, kind: 'brass' },
+      { id: 'l24-gate-post-bot', x: 556, y: 390, w: 22, h: 104, angle: 0, kind: 'brass' },
+      // Precision carnival-stripe entrance cheeks framing the final gilded runway (64px gate)
+      { id: 'l24-cheek-top', x: 668, y: 228, w: 34, h: 14, angle: 0.22, kind: 'carnival-stripe' },
+      { id: 'l24-cheek-bot', x: 668, y: 312, w: 34, h: 14, angle: -0.22, kind: 'carnival-stripe' },
+      // Angled brass back-corner reflectors behind the championship cup
+      { id: 'l24-back-tr', x: 800, y: 236, w: 36, h: 14, angle: Math.PI / 4, kind: 'brass' },
+      { id: 'l24-back-br', x: 800, y: 304, w: 36, h: 14, angle: -Math.PI / 4, kind: 'brass' },
+    ],
+    bumpers: [
+      // Spring 1: Launches tee shots upward past the first brass gear
+      {
+        id: 'l24-spring-1',
+        x: 232,
+        y: 372,
+        radius: 23,
+        restitution: 1.24,
+        color: '#DC2626',
+        accentColor: '#FACC15',
+        style: 'spring',
+        launchSpeed: 455,
+        launchDirX: 0.32,
+        launchDirY: -0.95,
+      },
+      // Spring 2: Upper-center redirector launching diagonally toward the moving gate
+      {
+        id: 'l24-spring-2',
+        x: 418,
+        y: 150,
+        radius: 23,
+        restitution: 1.24,
+        color: '#F59E0B',
+        accentColor: '#FFFDF5',
+        style: 'spring',
+        launchSpeed: 440,
+        launchDirX: 0.86,
+        launchDirY: 0.51,
+      },
+    ],
+    gates: [
+      {
+        id: 'l24-gate-1',
+        closedX: 556,
+        closedY: 270,
+        openX: 556,
+        openY: 146,
+        w: 20,
+        h: 118,
+        period: 4.2,
+        phaseOffset: 0.8,
+        color: '#F59E0B',
+      },
+    ],
+    rotators: [
+      {
+        id: 'l24-gear-1',
+        cx: 242,
+        cy: 196,
+        length: 102,
+        thickness: 15,
+        blades: 2,
+        initialAngle: 0.3,
+        angularVelocity: 0.82,
+        hubRadius: 16,
+        style: 'gear',
+      },
+      {
+        id: 'l24-gear-2',
+        cx: 432,
+        cy: 336,
+        length: 104,
+        thickness: 15,
+        blades: 2,
+        initialAngle: 0.8,
+        angularVelocity: -0.88,
+        hubRadius: 16,
+        style: 'gear',
+      },
+    ],
+    decor: [
+      { kind: 'carnival-tent', x: 702, y: 122, scale: 1.04, color: '#DC2626' },
+      { kind: 'clock-dial', x: 794, y: 126, scale: 0.94 },
+      { kind: 'balloon', x: 752, y: 158, scale: 0.86, color: '#FACC15' },
+      { kind: 'carnival-tent', x: 702, y: 414, scale: 1.04, color: '#2563EB' },
+      { kind: 'gear-prop', x: 794, y: 416, scale: 1.0, color: '#F59E0B' },
+      { kind: 'balloon', x: 752, y: 394, scale: 0.86, color: '#EF4444' },
+      { kind: 'gear-prop', x: 220, y: 50, scale: 0.92, color: '#D97706' },
+      { kind: 'clock-dial', x: 432, y: 50, scale: 0.84 },
+      { kind: 'balloon', x: 240, y: 492, scale: 0.88, color: '#38BDF8' },
+      { kind: 'gear-prop', x: 452, y: 492, scale: 0.92, color: '#F59E0B' },
+    ],
+  },
 ];
+

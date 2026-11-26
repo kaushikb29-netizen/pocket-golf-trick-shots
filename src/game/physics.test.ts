@@ -154,8 +154,8 @@ test('predictAimPath generates trajectory points and scoring labels match golf r
   assert.equal(formatParDelta(10, 8), '+2 Over Par');
 });
 
-test('course sequence contains 20 holes with expected names and pars', () => {
-  assert.equal(LEVELS.length, 20);
+test('course sequence contains 24 holes with expected names and pars', () => {
+  assert.equal(LEVELS.length, 24);
   assert.deepEqual(
     LEVELS.map((l) => [l.id, l.name, l.par]),
     [
@@ -179,10 +179,14 @@ test('course sequence contains 20 holes with expected names and pars', () => {
       [18, 'Chocolate Conveyor', 4],
       [19, 'Jellybean Junction', 4],
       [20, 'Candy Chaos', 5],
+      [21, 'Gear Garden', 4],
+      [22, 'Spring Shot', 4],
+      [23, 'Clock Tower', 5],
+      [24, 'The Grand Finale', 5],
     ]
   );
   const totalPar = LEVELS.reduce((sum, l) => sum + l.par, 0);
-  assert.equal(totalPar, 75);
+  assert.equal(totalPar, 93);
 });
 
 test('Hole 4 Zigzag Garden angled corner bumper deflects vertical shot cleanly into corridor', () => {
@@ -961,3 +965,195 @@ test('Hole 20 Candy Chaos integrates 2 conveyors, 3 candy bumpers, sticky jelly,
   }
   assert.equal(sank, true, 'straight precision putt through final gate should sink into Hole 20 cup');
 });
+
+test('Hole 21 Gear Garden counter-rotating brass gears deflect ball cleanly and final approach sinks into cup', () => {
+  const level21 = LEVELS[20];
+  assert.equal(level21.theme, 'clockwork');
+  assert.equal(level21.par, 4);
+  assert.equal(level21.rotators.length, 3, 'Hole 21 must feature 3 rotating brass gears');
+  assert.equal(level21.rotators.every((r) => r.style === 'gear'), true);
+
+  // Verify counter-rotating gear strikes a ball placed inside its tooth sweep
+  const simGear = createInitialSimState(level21);
+  const g1 = level21.rotators[0];
+  simGear.ball.x = g1.cx + 38;
+  simGear.ball.y = g1.cy;
+  let struck = false;
+  for (let i = 0; i < 180; i++) {
+    const evs = stepSimulation(simGear, level21, 1 / 60);
+    if (evs.some((e) => e.type === 'rotator')) {
+      struck = true;
+      break;
+    }
+  }
+  assert.equal(struck, true, 'rotating brass gear must physically collide with and deflect ball');
+
+  // Verify clean approach past Gear 3 into Hole 21 cup (748, 270)
+  const simPutt = createInitialSimState(level21);
+  simPutt.ball.x = 672;
+  simPutt.ball.y = 270;
+  launchBall(simPutt.ball, 210, 0);
+  let sank = false;
+  for (let i = 0; i < 180; i++) {
+    const evs = stepSimulation(simPutt, level21, 1 / 60);
+    if (evs.some((e) => e.type === 'hole_sink')) {
+      sank = true;
+      break;
+    }
+  }
+  assert.equal(sank, true, 'approach shot should sink cleanly into Hole 21 cup');
+});
+
+test('Hole 22 Spring Shot spring bumpers launch ball strongly along intended directions without tunneling', () => {
+  const level22 = LEVELS[21];
+  assert.equal(level22.theme, 'clockwork');
+  assert.equal(level22.par, 4);
+  assert.equal(level22.bumpers.length, 4, 'Hole 22 must feature 4 spring-powered bumpers');
+  assert.equal(level22.bumpers.every((b) => b.style === 'spring'), true);
+
+  // Tee shot straight right hits Spring 1 (284, 368) and launches strongly upward toward upper lane
+  const sim = createInitialSimState(level22);
+  launchBall(sim.ball, 360, -20);
+  let hitSpring = false;
+  let maxUpwardVy = 0;
+  for (let i = 0; i < 180; i++) {
+    const evs = stepSimulation(sim, level22, 1 / 60);
+    if (evs.some((e) => e.type === 'bumper')) {
+      hitSpring = true;
+    }
+    if (sim.ball.vy < maxUpwardVy) {
+      maxUpwardVy = sim.ball.vy;
+    }
+    // Ball must never tunnel outside outer brass arena (x: 88..812, y: 100..440)
+    assert.ok(sim.ball.x >= 88 && sim.ball.x <= 812, `ball X escaped bounds: ${sim.ball.x}`);
+    assert.ok(sim.ball.y >= 100 && sim.ball.y <= 440, `ball Y escaped bounds: ${sim.ball.y}`);
+  }
+  assert.equal(hitSpring, true, 'tee shot should trigger Spring 1 launch bumper');
+  assert.ok(
+    maxUpwardVy < -350,
+    `Spring 1 must launch ball strongly upward (maxUpwardVy=${maxUpwardVy.toFixed(1)})`
+  );
+
+  // Lower-right Spring 4 (546, 376) redirects approaching balls rightward toward Hole 22 cup (746, 374)
+  const simCup = createInitialSimState(level22);
+  simCup.ball.x = 640;
+  simCup.ball.y = 374;
+  launchBall(simCup.ball, 240, 0);
+  let sank = false;
+  for (let i = 0; i < 180; i++) {
+    const evs = stepSimulation(simCup, level22, 1 / 60);
+    if (evs.some((e) => e.type === 'hole_sink')) {
+      sank = true;
+      break;
+    }
+  }
+  assert.equal(sank, true, 'final putt on right green should sink cleanly into Hole 22 cup');
+});
+
+test('Hole 23 Clock Tower moving brass gates open/close cleanly, ornate clock hand sweeps, and cup sinks cleanly', () => {
+  const level23 = LEVELS[22];
+  assert.equal(level23.theme, 'clockwork');
+  assert.equal(level23.par, 5);
+  assert.equal(level23.gates?.length, 2, 'Hole 23 must feature 2 moving mechanical gates');
+  assert.equal(level23.rotators.length, 3, 'Hole 23 must feature clock hand + 2 escapement gears');
+  assert.equal(level23.rotators[0].style, 'clock-hand');
+
+  // Verify both gates oscillate between closed (y=270) and fully open doorways
+  const [gate1, gate2] = level23.gates!;
+  let g1Closed = false;
+  let g1Open = false;
+  let g2Open = false;
+  for (let t = 0; t <= 5.0; t += 0.1) {
+    const s1 = evaluateGateState(gate1, t);
+    const s2 = evaluateGateState(gate2, t);
+    if (Math.abs(s1.y - gate1.closedY) < 2) g1Closed = true;
+    if (Math.abs(s1.y - gate1.openY) < 2) g1Open = true;
+    if (Math.abs(s2.y - gate2.openY) < 2) g2Open = true;
+  }
+  assert.equal(g1Closed, true, 'Gate 1 must fully close during cycle');
+  assert.equal(g1Open, true, 'Gate 1 must fully open during cycle');
+  assert.equal(g2Open, true, 'Gate 2 must fully open during cycle');
+
+  // Verify ornate clock hand rotates smoothly and strikes balls in its sweep
+  const simClock = createInitialSimState(level23);
+  const hand = level23.rotators[0];
+  simClock.ball.x = hand.cx + 76;
+  simClock.ball.y = hand.cy;
+  let hitHand = false;
+  for (let i = 0; i < 300; i++) {
+    const evs = stepSimulation(simClock, level23, 1 / 60);
+    if (evs.some((e) => e.type === 'rotator')) {
+      hitHand = true;
+      break;
+    }
+  }
+  assert.equal(hitHand, true, 'giant ornate clock hand must sweep and deflect balls in its arc');
+
+  // Verify putt in final chamber sinks cleanly into Hole 23 cup (756, 270)
+  const simFinal = createInitialSimState(level23);
+  simFinal.ball.x = 668;
+  simFinal.ball.y = 270;
+  launchBall(simFinal.ball, 220, 0);
+  let sank = false;
+  for (let i = 0; i < 180; i++) {
+    const evs = stepSimulation(simFinal, level23, 1 / 60);
+    if (evs.some((e) => e.type === 'hole_sink')) {
+      sank = true;
+      break;
+    }
+  }
+  assert.equal(sank, true, 'clean putt past Gate 2 should sink into Hole 23 cup');
+});
+
+test('Hole 24 The Grand Finale unites gears, spring launchers, timed gate, and solvable gilded championship chute', () => {
+  const level24 = LEVELS[23];
+  assert.equal(level24.theme, 'clockwork');
+  assert.equal(level24.par, 5);
+  assert.equal(level24.bumpers.length, 2, 'Hole 24 must feature 2 spring bumpers');
+  assert.equal(level24.bumpers.every((b) => b.style === 'spring'), true);
+  assert.equal(level24.rotators.length, 2, 'Hole 24 must feature 2 rotating brass gears');
+  assert.equal(level24.rotators.every((r) => r.style === 'gear'), true);
+  assert.equal(level24.gates?.length, 1, 'Hole 24 must feature a timed brass gate');
+
+  // Verify tee shot into Spring 1 launches upward cleanly inside bounds
+  const simSpring = createInitialSimState(level24);
+  launchBall(simSpring.ball, 320, -10);
+  let launched = false;
+  for (let i = 0; i < 100; i++) {
+    const evs = stepSimulation(simSpring, level24, 1 / 60);
+    if (evs.some((e) => e.type === 'bumper')) {
+      launched = true;
+      break;
+    }
+  }
+  assert.equal(launched, true, 'Hole 24 Spring 1 should catch and launch tee shot');
+  assert.ok(simSpring.ball.vy < -320, 'Hole 24 Spring 1 should fire ball briskly upward');
+
+  // Verify timed brass gate opens cleanly for approach into championship runway
+  const gate = level24.gates![0];
+  let opensCleanly = false;
+  for (let t = 0; t <= 4.5; t += 0.1) {
+    const st = evaluateGateState(gate, t);
+    if (Math.abs(st.y - gate.openY) < 2) {
+      opensCleanly = true;
+      break;
+    }
+  }
+  assert.equal(opensCleanly, true, 'Hole 24 brass gate must open fully to expose championship chute');
+
+  // Verify precision putt down gilded championship chute sinks cleanly into Hole 24 cup (772, 270)
+  const simFinale = createInitialSimState(level24);
+  simFinale.ball.x = 632;
+  simFinale.ball.y = 270;
+  launchBall(simFinale.ball, 250, 0);
+  let sank = false;
+  for (let i = 0; i < 200; i++) {
+    const evs = stepSimulation(simFinale, level24, 1 / 60);
+    if (evs.some((e) => e.type === 'hole_sink')) {
+      sank = true;
+      break;
+    }
+  }
+  assert.equal(sank, true, 'precision putt down the gilded championship runway must sink into Hole 24 cup');
+});
+

@@ -118,6 +118,8 @@ export class ParticlePool {
         ? '#E0F7FF'
         : theme === 'candy'
         ? '#F9A8D4'
+        : theme === 'clockwork'
+        ? '#FDE047'
         : '#FFFFFF';
     this.spawn(x, y, 0, 0, 7, 0.22, ringColor, 'ring', 0, 88 + power * 42);
 
@@ -130,6 +132,8 @@ export class ParticlePool {
         ? '#BAE6FD'
         : theme === 'candy'
         ? '#F472B6'
+        : theme === 'clockwork'
+        ? '#FBBF24'
         : theme === 'beach'
         ? '#FDE68A'
         : '#A7F3D0';
@@ -169,6 +173,8 @@ export class ParticlePool {
         ? '#BAE6FD'
         : theme === 'candy'
         ? '#FBCFE8'
+        : theme === 'clockwork'
+        ? '#FCD34D'
         : '#FEF3C7';
     this.spawn(x, y, 0, 0, 5, 0.24, ringColor, 'ring', 0, 72 + intensity * 64);
 
@@ -181,6 +187,8 @@ export class ParticlePool {
         ? '#7DD3FC'
         : theme === 'candy'
         ? '#6EE7B7'
+        : theme === 'clockwork'
+        ? '#F59E0B'
         : '#FDE68A';
     for (let i = 0; i < count; i++) {
       const a = baseAngle + (Math.random() - 0.5) * 1.45;
@@ -267,6 +275,67 @@ export class ParticlePool {
         color,
         isSparkle ? 'sparkle' : 'confetti',
         1.95
+      );
+    }
+  }
+
+  public emitSpringBurst(x: number, y: number, dirX = 0, dirY = 0): void {
+    this.spawn(x, y, 0, 0, 12, 0.36, '#F59E0B', 'ring', 0, 175);
+    this.spawn(x, y, 0, 0, 8, 0.28, '#FEF08A', 'ring', 0, 130);
+    const colors = ['#FDE047', '#F59E0B', '#EF4444', '#FFFDF5'];
+    const baseA = dirX !== 0 || dirY !== 0 ? Math.atan2(dirY, dirX) : 0;
+    const directional = dirX !== 0 || dirY !== 0;
+    for (let i = 0; i < 18; i++) {
+      const a = directional
+        ? baseA + (Math.random() - 0.5) * 1.3
+        : (i / 18) * Math.PI * 2 + Math.random() * 0.2;
+      const spd = (directional ? 130 : 95) + Math.random() * 175;
+      const isSparkle = i % 3 === 0;
+      this.spawn(
+        x,
+        y,
+        Math.cos(a) * spd,
+        Math.sin(a) * spd,
+        isSparkle ? 5.2 + Math.random() * 2.8 : 3.2 + Math.random() * 3,
+        0.3 + Math.random() * 0.22,
+        colors[i % colors.length],
+        isSparkle ? 'sparkle' : 'circle',
+        3.2
+      );
+    }
+  }
+
+  public emitGrandChampionshipCelebration(x: number, y: number): void {
+    // Grand multi-wave golden & carnival shockwave rings
+    this.spawn(x, y, 0, 0, 12, 0.58, '#FACC15', 'ring', 0, 145);
+    this.spawn(x, y, 0, 0, 16, 0.72, '#EF4444', 'ring', 0, 205);
+    this.spawn(x, y, 0, 0, 20, 0.86, '#38BDF8', 'ring', 0, 265);
+    this.spawn(x, y, 0, 0, 24, 0.96, '#FFFFFF', 'ring', 0, 315);
+
+    const grandPalette = [
+      '#FDE047',
+      '#F59E0B',
+      '#EF4444',
+      '#34D399',
+      '#38BDF8',
+      '#C084FC',
+      '#FFFFFF',
+    ];
+    for (let i = 0; i < 88; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const spd = 95 + Math.random() * 340;
+      const color = grandPalette[i % grandPalette.length];
+      const isSparkle = i % 2 === 0;
+      this.spawn(
+        x,
+        y,
+        Math.cos(a) * spd,
+        Math.sin(a) * spd - 52,
+        isSparkle ? 6.5 + Math.random() * 5 : 5.4 + Math.random() * 4.8,
+        0.88 + Math.random() * 0.75,
+        color,
+        isSparkle ? 'sparkle' : 'confetti',
+        1.75
       );
     }
   }

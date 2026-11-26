@@ -495,11 +495,34 @@ function collideCircleBumper(
 
   const vn = ball.vx * nx + ball.vy * ny;
   if (vn < 0) {
-    const bounceBoost = Math.max(Math.abs(vn) * bumper.restitution, 160);
-    const tangentVx = ball.vx - vn * nx;
-    const tangentVy = ball.vy - vn * ny;
-    ball.vx = tangentVx + nx * bounceBoost;
-    ball.vy = tangentVy + ny * bounceBoost;
+    if (bumper.style === 'spring') {
+      const springPower = Math.max(
+        Math.abs(vn) * Math.max(bumper.restitution, 1.25),
+        bumper.launchSpeed ?? 410
+      );
+      if (bumper.launchDirX !== undefined && bumper.launchDirY !== undefined) {
+        const dLen = Math.hypot(bumper.launchDirX, bumper.launchDirY) || 1;
+        const lx = bumper.launchDirX / dLen;
+        const ly = bumper.launchDirY / dLen;
+        // Blend directional spring aim (76%) with surface normal (24%) so angled hits stay exciting & controllable
+        const bx = lx * 0.76 + nx * 0.24;
+        const by = ly * 0.76 + ny * 0.24;
+        const bLen = Math.hypot(bx, by) || 1;
+        ball.vx = (bx / bLen) * springPower;
+        ball.vy = (by / bLen) * springPower;
+      } else {
+        const tangentVx = ball.vx - vn * nx;
+        const tangentVy = ball.vy - vn * ny;
+        ball.vx = tangentVx * 0.85 + nx * springPower;
+        ball.vy = tangentVy * 0.85 + ny * springPower;
+      }
+    } else {
+      const bounceBoost = Math.max(Math.abs(vn) * bumper.restitution, 160);
+      const tangentVx = ball.vx - vn * nx;
+      const tangentVy = ball.vy - vn * ny;
+      ball.vx = tangentVx + nx * bounceBoost;
+      ball.vy = tangentVy + ny * bounceBoost;
+    }
 
     const speed = Math.hypot(ball.vx, ball.vy);
     const maxCap = MAX_LAUNCH_SPEED * 1.15;

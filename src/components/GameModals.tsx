@@ -445,6 +445,7 @@ export function LevelClearModal({
       <div className="animate-modal-pop w-full max-w-sm bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-6 shadow-[0_10px_0_#522810] text-center">
         <p className="text-xs font-extrabold uppercase tracking-wider text-[#8A4B20]">
           Hole {levelNumber} Cleared · {levelName}
+          {levelNumber === 20 ? ' · World 5 Complete!' : ''}
         </p>
 
         {/* Celebratory Score Banner with sparkles for Hole in One / Eagle / Birdie / Last Chance Save */}
@@ -548,8 +549,10 @@ interface VictoryModalProps {
   holeStrokes: number[];
   lastHoleStrokes: number;
   lastHolePar: number;
-  candyWorldEarnedStars: number;
-  candyWorldMaxStars: number;
+  worldEarnedStars: number;
+  worldMaxStars: number;
+  totalEarnedStars: number;
+  totalMaxStars: number;
   bestTotal: number | null;
   githubUser: GithubUser | null;
   githubConnecting: boolean;
@@ -566,8 +569,10 @@ export function VictoryModal({
   holeStrokes,
   lastHoleStrokes,
   lastHolePar,
-  candyWorldEarnedStars,
-  candyWorldMaxStars,
+  worldEarnedStars,
+  worldMaxStars,
+  totalEarnedStars,
+  totalMaxStars,
   bestTotal,
   githubUser,
   githubConnecting,
@@ -595,23 +600,23 @@ export function VictoryModal({
   const effectiveStrokes = totalStrokes > 0 ? totalStrokes : Math.max(1, lastHoleStrokes);
   const deltaText = formatParDelta(effectiveStrokes, effectivePar);
   const diff = effectiveStrokes - effectivePar;
-  const hole20Score = Math.max(1, holeStrokes[LEVELS.length - 1] || lastHoleStrokes || lastHolePar);
-  const hole20Info = getScoreLabel(hole20Score, lastHolePar);
+  const finalHoleScore = Math.max(1, holeStrokes[LEVELS.length - 1] || lastHoleStrokes || lastHolePar);
+  const finalHoleInfo = getScoreLabel(finalHoleScore, lastHolePar);
   const performanceLabel =
-    diff <= -4
-      ? 'Legendary Trick-Shot Master'
+    diff <= -6
+      ? 'Legendary Trick-Shot Grandmaster'
       : diff <= 0
-      ? 'Candy Factory Champion'
-      : diff <= 5
-      ? 'Pro Club Finisher'
-      : `${LEVELS.length}-Hole Challenger`;
+      ? 'Pocket Golf Grand Champion'
+      : diff <= 8
+      ? 'Clockwork Carnival Champion'
+      : `${LEVELS.length}-Hole Tour Finisher`;
   const displayStars: 1 | 2 | 3 = isFullRun
     ? diff <= 0
       ? 3
-      : diff <= 6
+      : diff <= 8
       ? 2
       : 1
-    : hole20Info.stars;
+    : finalHoleInfo.stars;
 
   const firstHalf = LEVELS.slice(0, Math.ceil(LEVELS.length / 2));
   const secondHalf = LEVELS.slice(Math.ceil(LEVELS.length / 2));
@@ -641,86 +646,101 @@ export function VictoryModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="victory-title"
-      className="fixed inset-0 z-30 flex items-center justify-center p-2.5 sm:p-4"
-      style={{ backgroundColor: 'rgba(65, 16, 46, 0.72)' }}
+      className="fixed inset-0 z-30 flex items-center justify-center p-2 sm:p-3.5"
+      style={{ backgroundColor: 'rgba(28, 20, 48, 0.78)' }}
     >
-      <div className="animate-modal-pop w-full max-w-2xl max-h-[93dvh] overflow-y-auto touch-pan-y overscroll-contain bg-[#FFF8F2] border-[4px] border-[#6B1839] rounded-3xl p-4 sm:p-5 shadow-[0_10px_0_#6B1839] text-center">
-        {/* Candy Factory Completed Colorful Celebration Header */}
+      <div className="animate-modal-pop w-full max-w-2xl max-h-[94dvh] overflow-y-auto touch-pan-y overscroll-contain bg-[#FFFBEB] border-[4px] border-[#78350F] rounded-3xl p-3.5 sm:p-5 shadow-[0_10px_0_#78350F] text-center">
+        {/* Special Final Championship Celebration Header */}
         <div className="flex items-center justify-center gap-3">
           <div className="relative shrink-0">
-            <svg viewBox="0 0 48 48" className="w-12 h-12 sm:w-13 sm:h-13" aria-hidden="true">
+            <svg viewBox="0 0 54 54" className="w-13 h-13 sm:w-14 sm:h-14" aria-hidden="true">
+              {/* Royal Crown floating above Championship Cup */}
               <path
-                d="M12 10 H36 V20 C36 27 30.5 32 24 32 C17.5 32 12 27 12 20 Z"
-                fill="#EC4899"
-                stroke="#6B1839"
+                d="M17 11 L20 4 L27 8.5 L34 4 L37 11 Z"
+                fill="#FACC15"
+                stroke="#78350F"
+                strokeWidth="2.2"
+                strokeLinejoin="round"
+              />
+              {/* Golden Championship Trophy Cup */}
+              <path
+                d="M13 14 H41 V24 C41 31.5 34.8 36.5 27 36.5 C19.2 36.5 13 31.5 13 24 Z"
+                fill="#F59E0B"
+                stroke="#78350F"
                 strokeWidth="3"
                 strokeLinejoin="round"
               />
+              {/* Trophy Handles */}
               <path
-                d="M12 13 H6 C6 20 9 23 13 23 M36 13 H42 C42 20 39 23 35 23"
+                d="M13 17 H7 C7 24 10 27.5 14 27.5 M41 17 H47 C47 24 44 27.5 40 27.5"
                 fill="none"
-                stroke="#6B1839"
+                stroke="#78350F"
                 strokeWidth="3"
                 strokeLinecap="round"
               />
-              {/* Sweet star emblem on cup */}
+              {/* Championship Star Emblem */}
               <path
-                d="M24 14 L26 19 L31 19.5 L27.2 22.8 L28.4 27.5 L24 24.8 L19.6 27.5 L20.8 22.8 L17 19.5 L22 19 Z"
-                fill="#FDE047"
-                stroke="#6B1839"
+                d="M27 18 L29.1 23 L34.4 23.5 L30.3 26.9 L31.6 32 L27 29.2 L22.4 32 L23.7 26.9 L19.6 23.5 L24.9 23 Z"
+                fill="#FEF08A"
+                stroke="#78350F"
                 strokeWidth="1.5"
                 strokeLinejoin="round"
               />
-              <rect x="20.5" y="32" width="7" height="7" fill="#FACC15" stroke="#522810" strokeWidth="2.5" />
-              <rect x="14" y="38" width="20" height="5" rx="2" fill="#BA6B32" stroke="#522810" strokeWidth="2.5" />
+              {/* Pedestal */}
+              <rect x="23" y="36.5" width="8" height="7" fill="#D97706" stroke="#522810" strokeWidth="2.5" />
+              <rect x="15.5" y="43" width="23" height="6" rx="2.5" fill="#92400E" stroke="#522810" strokeWidth="2.5" />
             </svg>
-            <SparkleAccent className="animate-sparkle w-4 h-4 absolute -top-1.5 -right-1.5" color="#FACC15" />
-            <SparkleAccent className="animate-sparkle w-3.5 h-3.5 absolute -bottom-1 -left-1.5" color="#34D399" />
+            <SparkleAccent className="animate-sparkle w-4 h-4 absolute -top-1 -right-1.5" color="#FACC15" />
+            <SparkleAccent className="animate-sparkle w-3.5 h-3.5 absolute top-2 -left-2" color="#EF4444" />
+            <SparkleAccent className="animate-sparkle w-3.5 h-3.5 absolute -bottom-0.5 -right-1" color="#38BDF8" />
           </div>
           <div className="text-left">
-            <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#BE185D]">
-              World 5 · {performanceLabel}
+            <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#B45309]">
+              All 6 Worlds Conquered · {performanceLabel}
             </div>
             <h2
               id="victory-title"
-              className="mt-0.5 font-display text-lg sm:text-2xl font-bold text-[#6B1839] leading-tight"
+              className="mt-0.5 font-display text-lg sm:text-2xl font-bold text-[#78350F] leading-tight"
             >
-              CANDY FACTORY COMPLETED!
+              GRAND CHAMPIONSHIP COMPLETED!
             </h2>
           </div>
         </div>
 
-        {/* Summary Stat Strip: Hole 20 / Run Strokes, Par, Stars */}
-        <div className="mt-2.5 grid grid-cols-3 gap-2 rounded-2xl border-[3px] border-[#BE185D] bg-[#FDF2F8] px-3 py-2">
+        {/* Championship Stat Strip: Strokes, Performance, Stars */}
+        <div className="mt-2 grid grid-cols-3 gap-2 rounded-2xl border-[3px] border-[#D97706] bg-[#FEF3C7] px-3 py-1.5">
           <div>
-            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#9D174D]">
-              {isFullRun ? 'Total Strokes' : 'Hole 20 Strokes'}
+            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#92400E]">
+              {isFullRun ? 'Total Strokes' : 'Hole 24 Strokes'}
             </div>
-            <div className="font-display text-2xl font-bold text-[#3B1D0E] tabular-nums">
-              {isFullRun ? effectiveStrokes : hole20Score}
+            <div className="font-display text-xl sm:text-2xl font-bold text-[#3B1D0E] tabular-nums">
+              {isFullRun ? effectiveStrokes : finalHoleScore}
             </div>
           </div>
-          <div className="border-x-2 border-[#FBCFE8]">
-            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#9D174D]">
+          <div className="border-x-2 border-[#FDE68A]">
+            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#92400E]">
               {isFullRun ? 'Performance' : `Par ${lastHolePar}`}
             </div>
-            <div className="font-display text-base sm:text-xl font-bold text-[#15803D] tabular-nums leading-tight mt-0.5">
-              {isFullRun ? deltaText : hole20Info.title}
+            <div className="font-display text-sm sm:text-lg font-bold text-[#15803D] tabular-nums leading-tight mt-0.5">
+              {isFullRun ? deltaText : finalHoleInfo.title}
             </div>
           </div>
           <div>
-            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#9D174D]">
-              World 5 Stars
+            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#92400E]">
+              Tour Stars
             </div>
-            <div className="font-display text-2xl font-bold text-[#B45309] tabular-nums">
-              ★ {candyWorldEarnedStars}/{candyWorldMaxStars}
+            <div className="font-display text-xl sm:text-2xl font-bold text-[#B45309] tabular-nums leading-none mt-0.5">
+              ★ {totalEarnedStars}/{totalMaxStars}
+            </div>
+            <div className="text-[10px] font-bold text-[#92400E] tabular-nums">
+              World 6: ★ {worldEarnedStars}/{worldMaxStars}
             </div>
           </div>
         </div>
 
-        {/* Staggered Star Rating for Hole 20 / Run */}
+        {/* Staggered Championship Star Rating */}
         <div
-          className="mt-1.5 flex items-center justify-center gap-1.5"
+          className="mt-1 flex items-center justify-center gap-1.5"
           aria-label={`${displayStars} out of 3 stars`}
         >
           <StarSvg filled={displayStars >= 1} animClass="animate-star-pop-1" />
@@ -728,19 +748,19 @@ export function VictoryModal({
           <StarSvg filled={displayStars >= 3} animClass="animate-star-pop-3" />
         </div>
 
-        {/* Compact 20-Hole Two-Column Scorecard (Holes 1-10 & 11-20) */}
-        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
+        {/* Compact 24-Hole Two-Column Scorecard (Holes 1-12 & 13-24) */}
+        <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
           {[firstHalf, secondHalf].map((group, groupIdx) => (
             <div
               key={groupIdx}
-              className="overflow-hidden rounded-2xl border-[3px] border-[#522810] bg-[#FFFDF7]"
+              className="overflow-hidden rounded-2xl border-[2.5px] border-[#522810] bg-[#FFFDF7]"
             >
-              <table className="w-full border-collapse text-xs">
+              <table className="w-full border-collapse text-[11px]">
                 <thead>
                   <tr className="bg-[#F5E6C4] border-b-2 border-[#522810] text-[#522810]">
-                    <th className="py-1 px-2.5 font-extrabold">Hole</th>
-                    <th className="py-1 px-1.5 text-center font-extrabold">Par</th>
-                    <th className="py-1 px-2.5 text-right font-extrabold">Score</th>
+                    <th className="py-0.5 px-2 font-extrabold">Hole</th>
+                    <th className="py-0.5 px-1.5 text-center font-extrabold">Par</th>
+                    <th className="py-0.5 px-2 text-right font-extrabold">Score</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E9D9B6]">
@@ -756,26 +776,23 @@ export function VictoryModal({
                         : hDiff === 0
                         ? 'text-[#3B1D0E]'
                         : 'text-[#C2410C]';
-                    const isCandyHole = lvl.theme === 'candy';
-                    const isFrostHole = lvl.theme === 'frost';
+                    const rowTint =
+                      lvl.theme === 'clockwork'
+                        ? 'bg-[#FEF3C7]/75'
+                        : lvl.theme === 'candy'
+                        ? 'bg-[#FDF2F8]/70'
+                        : lvl.theme === 'frost'
+                        ? 'bg-[#F0F9FF]/65'
+                        : undefined;
                     return (
-                      <tr
-                        key={lvl.id}
-                        className={
-                          isCandyHole
-                            ? 'bg-[#FDF2F8]/80'
-                            : isFrostHole
-                            ? 'bg-[#F0F9FF]/70'
-                            : undefined
-                        }
-                      >
-                        <td className="py-0.5 px-2.5 font-bold text-[#3B1D0E] truncate max-w-[175px]">
+                      <tr key={lvl.id} className={rowTint}>
+                        <td className="py-[2px] px-2 font-bold text-[#3B1D0E] truncate max-w-[175px]">
                           {lvl.id}. {lvl.name}
                         </td>
-                        <td className="py-0.5 px-1.5 text-center font-semibold text-[#7C5332] tabular-nums">
+                        <td className="py-[2px] px-1.5 text-center font-semibold text-[#7C5332] tabular-nums">
                           {lvl.par}
                         </td>
-                        <td className={`py-0.5 px-2.5 text-right font-extrabold tabular-nums ${toneClass}`}>
+                        <td className={`py-[2px] px-2 text-right font-extrabold tabular-nums ${toneClass}`}>
                           {s > 0 ? s : '—'}
                         </td>
                       </tr>
@@ -788,8 +805,8 @@ export function VictoryModal({
         </div>
 
         {bestTotal !== null && (
-          <p className="mt-2 text-xs font-bold text-[#8A4B20] tabular-nums">
-            Personal Best (Full Tour): {bestTotal} Strokes
+          <p className="mt-1.5 text-xs font-bold text-[#8A4B20] tabular-nums">
+            Personal Best (Full 24-Hole Tour): {bestTotal} Strokes
           </p>
         )}
 

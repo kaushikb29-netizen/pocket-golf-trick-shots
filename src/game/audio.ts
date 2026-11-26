@@ -519,6 +519,90 @@ class GolfAudio {
     osc.start(now);
     osc.stop(now + 0.14);
   }
+
+  /** Playful coiled mechanical spring launch boing-twang for Clockwork Carnival spring bumpers */
+  public playSpringLaunch(impactSpeed = 240): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const intensity = Math.min(1, Math.max(0.35, impactSpeed / 520));
+
+    // Oscillating coiled spring pitch wobble
+    const osc = ctx.createOscillator();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(190, now);
+    osc.frequency.exponentialRampToValueAtTime(590 + intensity * 180, now + 0.14);
+    osc.frequency.exponentialRampToValueAtTime(340, now + 0.28);
+
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(32, now);
+    lfoGain.gain.setValueAtTime(42, now);
+    lfoGain.gain.exponentialRampToValueAtTime(4, now + 0.26);
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+
+    gain.gain.setValueAtTime(0.16 + intensity * 0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    lfo.start(now);
+    osc.start(now);
+    lfo.stop(now + 0.31);
+    osc.stop(now + 0.31);
+  }
+
+  /** Triumphant brassy championship fanfare when completing Hole 24 — The Grand Finale */
+  public playGrandChampionshipFanfare(): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const melody = [
+      { freq: 523.25, t: 0.0, dur: 0.22 }, // C5
+      { freq: 659.25, t: 0.09, dur: 0.22 }, // E5
+      { freq: 783.99, t: 0.18, dur: 0.24 }, // G5
+      { freq: 1046.5, t: 0.28, dur: 0.34 }, // C6
+      { freq: 987.77, t: 0.44, dur: 0.18 }, // B5
+      { freq: 1046.5, t: 0.56, dur: 0.42 }, // C6
+      { freq: 1318.5, t: 0.72, dur: 0.55 }, // E6
+      { freq: 1567.98, t: 0.88, dur: 0.72 }, // G6
+    ];
+
+    for (const note of melody) {
+      const start = now + note.t;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(note.freq, start);
+      gain.gain.setValueAtTime(0.16, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + note.dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + note.dur + 0.03);
+    }
+
+    // Warm golden championship chord resolution
+    const chordStart = now + 0.92;
+    [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((freq) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, chordStart);
+      gain.gain.setValueAtTime(0.075, chordStart);
+      gain.gain.exponentialRampToValueAtTime(0.001, chordStart + 0.95);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(chordStart);
+      osc.stop(chordStart + 0.98);
+    });
+  }
 }
 
 export const golfAudio = new GolfAudio();
