@@ -2,6 +2,7 @@ import {
   BallState,
   Bumper,
   CollisionEvent,
+  ConveyorBelt,
   ForceZone,
   LevelDefinition,
   MovingGate,
@@ -158,6 +159,76 @@ function applyForceZones(ball: BallState, zones: ForceZone[] | undefined, subDt:
     ball.vx = (ball.vx / sp) * cap;
     ball.vy = (ball.vy / sp) * cap;
   }
+}
+
+export function pointInConveyor(x: number, y: number, belt: ConveyorBelt): boolean {
+  let dx = x - belt.x;
+  let dy = y - belt.y;
+  if (belt.angle) {
+    const cos = Math.cos(-belt.angle);
+    const sin = Math.sin(-belt.angle);
+    const rx = dx * cos - dy * sin;
+    const ry = dx * sin + dy * cos;
+    dx = rx;
+    dy = ry;
+  }
+  return Math.abs(dx) <= belt.w / 2 && Math.abs(dy) <= belt.h / 2;
+}
+
+export function getActiveConveyor(
+  x: number,
+  y: number,
+  level: LevelDefinition
+): ConveyorBelt | null {
+  const conveyors = level.conveyors;
+  if (!conveyors || conveyors.length === 0) return null;
+  for (const belt of conveyors) {
+    if (pointInConveyor(x, y, belt)) {
+      return belt;
+    }
+  }
+  return null;
+}
+
+/**
+ * Gently accelerates and steers the ball along an active conveyor belt's direction.
+ * Wakes a slow/resting ball on the belt so it glides cleanly off the exit onto open turf,
+ * while tapering acceleration past the belt's cruise speed so shots stay controllable.
+ */
+function applyConveyors(
+  ball: BallState,
+  conveyors: ConveyorBelt[] | undefined,
+  subDt: number
+): ConveyorBelt | null {
+  if (!conveyors || conveyors.length === 0) return null;
+
+  let activeBelt: ConveyorBelt | null = null;
+  for (const belt of conveyors) {
+    if (!pointInConveyor(ball.x, ball.y, belt)) continue;
+    activeBelt = belt;
+    const len = Math.hypot(belt.dirX, belt.dirY);
+    if (len < 1e-4) continue;
+    const ux = belt.dirX / len;
+    const uy = belt.dirY / len;
+
+    ball.isMoving = true;
+    const alongSpeed = ball.vx * ux + ball.vy * uy;
+    const targetSpeed = belt.targetSpeed ?? 175;
+    const accel = alongSpeed < targetSpeed ? belt.strength : belt.strength * 0.25;
+    ball.vx += ux * accel * subDt;
+    ball.vy += uy * accel * subDt;
+  }
+
+  if (activeBelt) {
+    const sp = Math.hypot(ball.vx, ball.vy);
+    const cap = MAX_LAUNCH_SPEED * 1.05;
+    if (sp > cap) {
+      ball.vx = (ball.vx / sp) * cap;
+      ball.vy = (ball.vy / sp) * cap;
+    }
+  }
+
+  return activeBelt;
 }
 
 /**
@@ -554,6 +625,9 @@ export function stepSimulation(
       ball.teleportCooldown = Math.max(0, ball.teleportCooldown - subDt);
     }
 
+    // Moving conveyor belts wake resting balls and gently accelerate moving balls along the belt direction
+    applyConveyors(ball, level.conveyors, subDt);
+
     if (ball.isMoving) {
       // Apply lightweight 2D attract/repel force zones before integrating position
       applyForceZones(ball, level.forceZones, subDt);
@@ -755,10 +829,10 @@ export function stepSimulation(
       }
     }
 
-    // Settle stop check
+    // Settle stop check (never stall mid-conveyor so the belt always carries the ball cleanly off)
     if (ball.isMoving && Math.hypot(ball.vx, ball.vy) < STOP_SPEED_THRESHOLD) {
-      // Only stop if not perched right inside the cup edge
-      if (hDist >= level.holeRadius * 0.95) {
+      const onConveyor = getActiveConveyor(ball.x, ball.y, level) !== null;
+      if (!onConveyor && hDist >= level.holeRadius * 0.95) {
         ball.vx = 0;
         ball.vy = 0;
         ball.isMoving = false;
@@ -803,6 +877,7 @@ export function predictAimPath(
       ghost.teleportCooldown = Math.max(0, ghost.teleportCooldown - stepDt);
     }
     applyForceZones(ghost, level.forceZones, stepDt);
+    applyConveyors(ghost, level.conveyors, stepDt);
     ghost.x += ghost.vx * stepDt;
     ghost.y += ghost.vy * stepDt;
 

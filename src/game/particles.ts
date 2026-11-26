@@ -116,6 +116,8 @@ export class ParticlePool {
         ? '#38BDF8'
         : theme === 'frost'
         ? '#E0F7FF'
+        : theme === 'candy'
+        ? '#F9A8D4'
         : '#FFFFFF';
     this.spawn(x, y, 0, 0, 7, 0.22, ringColor, 'ring', 0, 88 + power * 42);
 
@@ -126,6 +128,8 @@ export class ParticlePool {
         ? '#7DD3FC'
         : theme === 'frost'
         ? '#BAE6FD'
+        : theme === 'candy'
+        ? '#F472B6'
         : theme === 'beach'
         ? '#FDE68A'
         : '#A7F3D0';
@@ -163,6 +167,8 @@ export class ParticlePool {
         ? '#38BDF8'
         : theme === 'frost'
         ? '#BAE6FD'
+        : theme === 'candy'
+        ? '#FBCFE8'
         : '#FEF3C7';
     this.spawn(x, y, 0, 0, 5, 0.24, ringColor, 'ring', 0, 72 + intensity * 64);
 
@@ -173,6 +179,8 @@ export class ParticlePool {
         ? '#F472B6'
         : theme === 'frost'
         ? '#7DD3FC'
+        : theme === 'candy'
+        ? '#6EE7B7'
         : '#FDE68A';
     for (let i = 0; i < count; i++) {
       const a = baseAngle + (Math.random() - 0.5) * 1.45;

@@ -154,8 +154,8 @@ test('predictAimPath generates trajectory points and scoring labels match golf r
   assert.equal(formatParDelta(10, 8), '+2 Over Par');
 });
 
-test('course sequence contains 16 holes with expected names and pars', () => {
-  assert.equal(LEVELS.length, 16);
+test('course sequence contains 18 holes with expected names and pars', () => {
+  assert.equal(LEVELS.length, 18);
   assert.deepEqual(
     LEVELS.map((l) => [l.id, l.name, l.par]),
     [
@@ -175,10 +175,12 @@ test('course sequence contains 16 holes with expected names and pars', () => {
       [14, 'Snowball Ricochet', 4],
       [15, 'Crystal Crossing', 4],
       [16, 'Blizzard Finale', 5],
+      [17, 'Sugar Rush', 3],
+      [18, 'Chocolate Conveyor', 4],
     ]
   );
   const totalPar = LEVELS.reduce((sum, l) => sum + l.par, 0);
-  assert.equal(totalPar, 59);
+  assert.equal(totalPar, 66);
 });
 
 test('Hole 4 Zigzag Garden angled corner bumper deflects vertical shot cleanly into corridor', () => {
@@ -685,4 +687,138 @@ test('Hole 16 Blizzard Finale combines ice sheets, snowball bumpers, rotating ob
     }
   }
   assert.equal(sank, true, 'final approach through frosted stone pillars should glide fairly into Hole 16 cup');
+});
+
+test('Hole 17 Sugar Rush rebounds off large candy bumpers and offers a clean navigable path to the cup', () => {
+  const level17 = LEVELS[16];
+  assert.equal(level17.theme, 'candy');
+  assert.equal(level17.par, 3);
+  assert.equal(level17.bumpers.length, 4, 'Hole 17 should feature 4 large circular candy bumpers');
+  assert.equal(level17.bumpers[0].style, 'candy');
+
+  // Verify candy bumper collision bounces ball cleanly using existing bumper collision system
+  const simBumper = createInitialSimState(level17);
+  const candy1 = level17.bumpers[0];
+  const dx = candy1.x - simBumper.ball.x;
+  const dy = candy1.y - simBumper.ball.y;
+  const len = Math.hypot(dx, dy);
+  launchBall(simBumper.ball, (dx / len) * 520, (dy / len) * 520);
+
+  let hitCandyBumper = false;
+  for (let i = 0; i < 60; i++) {
+    const events = stepSimulation(simBumper, level17, 1 / 60);
+    if (events.some((e) => e.type === 'bumper')) {
+      hitCandyBumper = true;
+      break;
+    }
+  }
+  assert.equal(hitCandyBumper, true, 'shot aimed at candy bumper must rebound via bumper collision');
+
+  // Verify practical tee shot threads between candy bumpers into the approach zone (x > 460)
+  const simDrive = createInitialSimState(level17);
+  launchBall(simDrive.ball, 560, 76);
+  for (let i = 0; i < 180; i++) {
+    stepSimulation(simDrive, level17, 1 / 60);
+  }
+  assert.ok(
+    simDrive.ball.x > 460,
+    `tee drive should navigate into the candy fairway past the first bumpers (x=${simDrive.ball.x.toFixed(1)})`
+  );
+
+  // Verify approach shot past jellybean obstacle sinks cleanly into Hole 17 cup (744, 318)
+  const simPutt = createInitialSimState(level17);
+  simPutt.ball.x = 585;
+  simPutt.ball.y = 342;
+  const pdx = level17.hole.x - simPutt.ball.x;
+  const pdy = level17.hole.y - simPutt.ball.y;
+  const plen = Math.hypot(pdx, pdy);
+  launchBall(simPutt.ball, (pdx / plen) * 280, (pdy / plen) * 280);
+  let sank = false;
+  for (let i = 0; i < 240; i++) {
+    const events = stepSimulation(simPutt, level17, 1 / 60);
+    if (events.some((e) => e.type === 'hole_sink')) {
+      sank = true;
+      break;
+    }
+  }
+  assert.equal(sank, true, 'clean approach shot past jellybean obstacle should sink into Hole 17 cup');
+});
+
+test('Hole 18 Chocolate Conveyor belts steer ball in indicated direction, never trap ball, and narrow chute sinks cleanly', () => {
+  const level18 = LEVELS[17];
+  assert.equal(level18.theme, 'candy');
+  assert.equal(level18.turfStyle, 'chocolate');
+  assert.equal(level18.par, 4);
+  assert.equal(level18.conveyors?.length, 2, 'Hole 18 must feature two moving conveyor belts');
+
+  const [belt1, belt2] = level18.conveyors!;
+
+  // Belt 1 moves UP (dirY < 0): placing a resting ball on Belt 1 must move it northward off the belt and settle cleanly
+  const simBelt1 = createInitialSimState(level18);
+  simBelt1.ball.x = belt1.x;
+  simBelt1.ball.y = belt1.y + 30;
+  simBelt1.ball.isMoving = false;
+
+  for (let i = 0; i < 20; i++) {
+    stepSimulation(simBelt1, level18, 1 / 60);
+  }
+  assert.ok(
+    simBelt1.ball.vy < -25,
+    `Belt 1 should accelerate ball upward in indicated direction (vy=${simBelt1.ball.vy.toFixed(1)})`
+  );
+
+  for (let i = 0; i < 260; i++) {
+    stepSimulation(simBelt1, level18, 1 / 60);
+  }
+  assert.equal(
+    simBelt1.ball.isMoving,
+    false,
+    'ball exiting Belt 1 must settle cleanly on open upper chocolate turf without being trapped'
+  );
+  assert.ok(
+    simBelt1.ball.y < belt1.y - belt1.h / 2,
+    `ball should exit north of Belt 1 (y=${simBelt1.ball.y.toFixed(1)}, exitY=${belt1.y - belt1.h / 2})`
+  );
+
+  // Belt 2 moves RIGHT (dirX > 0): placing a resting ball on Belt 2 must carry it eastward off the belt and settle cleanly
+  const simBelt2 = createInitialSimState(level18);
+  simBelt2.ball.x = belt2.x - 40;
+  simBelt2.ball.y = belt2.y;
+  simBelt2.ball.isMoving = false;
+
+  for (let i = 0; i < 20; i++) {
+    stepSimulation(simBelt2, level18, 1 / 60);
+  }
+  assert.ok(
+    simBelt2.ball.vx > 25,
+    `Belt 2 should accelerate ball rightward in indicated direction (vx=${simBelt2.ball.vx.toFixed(1)})`
+  );
+
+  for (let i = 0; i < 260; i++) {
+    stepSimulation(simBelt2, level18, 1 / 60);
+  }
+  assert.equal(
+    simBelt2.ball.isMoving,
+    false,
+    'ball exiting Belt 2 must settle cleanly on open right chocolate apron without being trapped'
+  );
+  assert.ok(
+    simBelt2.ball.x > belt2.x + belt2.w / 2,
+    `ball should exit east of Belt 2 (x=${simBelt2.ball.x.toFixed(1)}, exitX=${belt2.x + belt2.w / 2})`
+  );
+
+  // Narrow final putting chute (x = 618..814, y = 222..318) leads straight into Hole 18 cup (760, 270)
+  const simChute = createInitialSimState(level18);
+  simChute.ball.x = 620;
+  simChute.ball.y = 270;
+  launchBall(simChute.ball, 250, 0);
+  let sank = false;
+  for (let i = 0; i < 240; i++) {
+    const events = stepSimulation(simChute, level18, 1 / 60);
+    if (events.some((e) => e.type === 'hole_sink')) {
+      sank = true;
+      break;
+    }
+  }
+  assert.equal(sank, true, 'straight putt down the narrow chocolate putting area should sink into Hole 18 cup');
 });

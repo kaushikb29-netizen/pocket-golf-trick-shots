@@ -16,7 +16,7 @@ export interface RectWall {
   /** Rotation in radians */
   angle: number;
   /** Visual style */
-  kind?: 'border' | 'wood' | 'bumper-wall' | 'frost-stone' | 'crystal';
+  kind?: 'border' | 'wood' | 'bumper-wall' | 'frost-stone' | 'crystal' | 'candy-cane' | 'jellybean';
 }
 
 export interface Bumper {
@@ -27,7 +27,7 @@ export interface Bumper {
   restitution: number;
   color: string;
   accentColor: string;
-  style?: 'classic' | 'snowball';
+  style?: 'classic' | 'snowball' | 'candy';
 }
 
 export interface RotatingObstacle {
@@ -56,7 +56,19 @@ export interface TurfZone {
 }
 
 export interface DecorProp {
-  kind: 'bush' | 'flower' | 'palm' | 'stone' | 'umbrella' | 'snow-pine' | 'crystal' | 'snowman' | 'frost-rock';
+  kind:
+    | 'bush'
+    | 'flower'
+    | 'palm'
+    | 'stone'
+    | 'umbrella'
+    | 'snow-pine'
+    | 'crystal'
+    | 'snowman'
+    | 'frost-rock'
+    | 'lollipop'
+    | 'jellybean'
+    | 'gumdrop';
   x: number;
   y: number;
   scale: number;
@@ -128,7 +140,31 @@ export interface ForceZone {
   strength: number;
 }
 
-export type LevelTheme = 'resort' | 'garden' | 'beach' | 'neon' | 'frost';
+export interface ConveyorBelt {
+  id: string;
+  /** Center X in world coordinates */
+  x: number;
+  /** Center Y in world coordinates */
+  y: number;
+  /** Full width */
+  w: number;
+  /** Full height */
+  h: number;
+  /** Optional rotation in radians */
+  angle?: number;
+  /** Unit direction X of belt movement */
+  dirX: number;
+  /** Unit direction Y of belt movement */
+  dirY: number;
+  /** Acceleration in world px/s^2 applied while the ball is on the belt */
+  strength: number;
+  /** Visual belt animation speed in world px/s */
+  beltSpeed: number;
+  /** Target cruise speed along belt direction before tapering push */
+  targetSpeed?: number;
+}
+
+export type LevelTheme = 'resort' | 'garden' | 'beach' | 'neon' | 'frost' | 'candy';
 
 export interface LevelDefinition {
   id: number;
@@ -136,6 +172,8 @@ export interface LevelDefinition {
   subtitle: string;
   par: number;
   theme?: LevelTheme;
+  /** Optional surface palette variant (e.g. 'chocolate' for Hole 18) */
+  turfStyle?: 'default' | 'chocolate';
   worldWidth: number;
   worldHeight: number;
   tee: Vec2;
@@ -155,6 +193,8 @@ export interface LevelDefinition {
   portals?: PortalPair[];
   /** Circular attract (blue) and repel (red) force zones */
   forceZones?: ForceZone[];
+  /** Moving conveyor belts that gently push the ball in an indicated direction */
+  conveyors?: ConveyorBelt[];
   /** Optional sand traps & water hazards */
   hazards?: SurfaceZone[];
   /** Surrounding courtyard decorations */

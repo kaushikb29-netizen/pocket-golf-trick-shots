@@ -420,7 +420,9 @@ export function CourseSelectModal({
               </div>
               <div className="text-left sm:text-right text-xs sm:text-sm font-extrabold text-[#7C4B27] tabular-nums">
                 <div>
-                  Holes {activeWorld.holeIds[0]}–{activeWorld.holeIds[3]}
+                  {worldStats.implementedHoles < worldStats.totalHoles
+                    ? `Holes ${activeWorld.holeIds[0]}–${activeWorld.holeIds[worldStats.implementedHoles - 1]} Ready`
+                    : `Holes ${activeWorld.holeIds[0]}–${activeWorld.holeIds[3]}`}
                   {worldStats.totalPar !== null ? ` · Par ${worldStats.totalPar}` : ''}
                 </div>
                 <div
@@ -429,8 +431,10 @@ export function CourseSelectModal({
                   }
                 >
                   {worldStats.status === 'completed'
-                    ? 'World Completed!'
-                    : `${worldStats.completedCount}/${worldStats.totalHoles} Holes Cleared`}
+                    ? worldStats.implementedHoles < worldStats.totalHoles
+                      ? 'Available Holes Cleared!'
+                      : 'World Completed!'
+                    : `${worldStats.completedCount}/${worldStats.implementedHoles} Holes Cleared`}
                 </div>
               </div>
             </div>
@@ -628,22 +632,29 @@ export function CourseSelectModal({
             const stats = getWorldStats(progress, world);
             const unlocked = isWorldUnlocked(progress, world);
             const isComingSoon = world.comingSoon;
+            const isPartialWorld = !isComingSoon && stats.implementedHoles < stats.totalHoles;
 
             const statusLabel = isComingSoon
               ? 'Coming Soon'
               : !unlocked
               ? `Locked · Clear Hole ${world.holeIds[0] - 1}`
               : stats.status === 'completed'
-              ? 'Completed'
+              ? isPartialWorld
+                ? `${stats.implementedHoles}/${stats.implementedHoles} Ready Cleared`
+                : 'Completed'
               : stats.status === 'in_progress'
-              ? `${stats.completedCount}/${stats.totalHoles} Cleared`
+              ? `${stats.completedCount}/${stats.implementedHoles} Cleared`
+              : isPartialWorld
+              ? `Holes ${world.holeIds[0]}–${world.holeIds[stats.implementedHoles - 1]} Ready`
               : 'Not Started';
 
             const lockBadgeText = isComingSoon
               ? 'Coming Soon'
               : unlocked
               ? stats.status === 'completed'
-                ? 'Completed'
+                ? isPartialWorld
+                  ? '2/2 Ready'
+                  : 'Completed'
                 : 'Unlocked'
               : 'Locked';
 
@@ -753,13 +764,14 @@ export function CourseSelectModal({
                     {/* Compact 4-Hole Preview Strip */}
                     <div className="mt-2 grid grid-cols-4 gap-1.5" aria-hidden="true">
                       {world.holeIds.map((holeId) => {
-                        const rec = progress.holes[holeId];
-                        const holeOpen = !isComingSoon && isHoleUnlocked(progress, holeId);
+                        const holeImplemented = !isComingSoon && isHoleImplemented(holeId);
+                        const rec = holeImplemented ? progress.holes[holeId] : undefined;
+                        const holeOpen = holeImplemented && isHoleUnlocked(progress, holeId);
                         return (
                           <div
                             key={holeId}
                             className={`rounded-lg border px-1 py-1 text-center text-[10px] font-extrabold leading-none tabular-nums ${
-                              isComingSoon
+                              !holeImplemented
                                 ? 'border-[#E6D6B8] bg-[#F8F1E1] text-[#A28763]'
                                 : rec
                                 ? 'border-[#522810] bg-[#FEF3C7] text-[#3B1D0E]'
@@ -770,7 +782,13 @@ export function CourseSelectModal({
                           >
                             <div>H{holeId}</div>
                             <div className="mt-0.5 text-[9px] text-[#B45309]">
-                              {isComingSoon ? '—' : rec ? '★'.repeat(rec.stars) : holeOpen ? 'Open' : '🔒'}
+                              {!holeImplemented
+                                ? 'Soon'
+                                : rec
+                                ? '★'.repeat(rec.stars)
+                                : holeOpen
+                                ? 'Open'
+                                : '🔒'}
                             </div>
                           </div>
                         );
@@ -803,7 +821,9 @@ export function CourseSelectModal({
                       ? `Locked · Clear Hole ${world.holeIds[0] - 1}`
                       : stats.status === 'completed'
                       ? `Open ${world.name} →`
-                      : `Select Hole (${world.holeIds[0]}–${world.holeIds[3]}) →`}
+                      : `Select Hole (${world.holeIds[0]}–${
+                          world.holeIds[Math.max(0, stats.implementedHoles - 1)]
+                        }) →`}
                   </button>
                 </div>
               </article>

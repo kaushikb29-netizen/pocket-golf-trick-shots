@@ -60,7 +60,11 @@ function makeBoxBorders(
  * Generate watertight outer wooden border walls tightly hugging any clockwise polygon.
  * Convex corners extend outward to seal joints; concave corners stop flush to prevent inward protrusion.
  */
-function makePolygonBorders(points: Vec2[], prefix: string): RectWall[] {
+function makePolygonBorders(
+  points: Vec2[],
+  prefix: string,
+  kind: RectWall['kind'] = 'border'
+): RectWall[] {
   const n = points.length;
   const walls: RectWall[] = [];
 
@@ -102,7 +106,7 @@ function makePolygonBorders(points: Vec2[], prefix: string): RectWall[] {
       w: len + extStart + extEnd,
       h: BORDER_T,
       angle: Math.atan2(dy, dx),
-      kind: 'border',
+      kind,
     });
   }
 
@@ -2158,6 +2162,288 @@ export const LEVELS: LevelDefinition[] = [
       { kind: 'frost-rock', x: 475, y: 56, scale: 0.88 },
       { kind: 'frost-rock', x: 242, y: 484, scale: 0.9 },
       { kind: 'crystal', x: 448, y: 484, scale: 0.92 },
+    ],
+  },
+
+  // ===========================================================================
+  // LEVEL 17: Sugar Rush (Candy Factory, Par 3)
+  // ===========================================================================
+  {
+    id: 17,
+    name: 'Sugar Rush',
+    subtitle: 'Weave past giant candy bumpers and jellybean walls to the sweet green',
+    par: 3,
+    theme: 'candy',
+    turfStyle: 'default',
+    worldWidth: WORLD_WIDTH,
+    worldHeight: WORLD_HEIGHT,
+    tee: { x: 154, y: 234 },
+    hole: { x: 744, y: 318 },
+    holeRadius: HOLE_RADIUS,
+    turfPolygons: [
+      {
+        points: [
+          { x: 90, y: 112 },
+          { x: 540, y: 112 },
+          { x: 605, y: 182 },
+          { x: 810, y: 182 },
+          { x: 810, y: 424 },
+          { x: 365, y: 424 },
+          { x: 300, y: 356 },
+          { x: 90, y: 356 },
+        ],
+      },
+    ],
+    walls: [
+      ...makePolygonBorders(
+        [
+          { x: 90, y: 112 },
+          { x: 540, y: 112 },
+          { x: 605, y: 182 },
+          { x: 810, y: 182 },
+          { x: 810, y: 424 },
+          { x: 365, y: 424 },
+          { x: 300, y: 356 },
+          { x: 90, y: 356 },
+        ],
+        'l17',
+        'candy-cane'
+      ),
+      // Angled candy-cane bank surface at top-left tee bend
+      {
+        id: 'l17-angle-tl',
+        x: 120,
+        y: 142,
+        w: 66,
+        h: 18,
+        angle: -Math.PI / 4,
+        kind: 'candy-cane',
+      },
+      // Playful angled jellybean bumper wall along upper mid-lane
+      {
+        id: 'l17-jb-top',
+        x: 416,
+        y: 138,
+        w: 68,
+        h: 20,
+        angle: 0.24,
+        kind: 'jellybean',
+      },
+      // Colorful jellybean obstacle splitting upper/lower approach to the green
+      {
+        id: 'l17-jb-mid',
+        x: 618,
+        y: 266,
+        w: 24,
+        h: 76,
+        angle: 0,
+        kind: 'jellybean',
+      },
+      // Angled bounce rails framing the sweet green behind the cup
+      {
+        id: 'l17-angle-tr',
+        x: 782,
+        y: 210,
+        w: 62,
+        h: 18,
+        angle: Math.PI / 4,
+        kind: 'candy-cane',
+      },
+      {
+        id: 'l17-angle-br',
+        x: 782,
+        y: 396,
+        w: 62,
+        h: 18,
+        angle: -Math.PI / 4,
+        kind: 'candy-cane',
+      },
+    ],
+    bumpers: [
+      {
+        id: 'l17-candy-1',
+        x: 316,
+        y: 184,
+        radius: 26,
+        restitution: 1.18,
+        color: '#EC4899',
+        accentColor: '#FFFDF5',
+        style: 'candy',
+      },
+      {
+        id: 'l17-candy-2',
+        x: 358,
+        y: 322,
+        radius: 27,
+        restitution: 1.18,
+        color: '#FACC15',
+        accentColor: '#FFFDF5',
+        style: 'candy',
+      },
+      {
+        id: 'l17-candy-3',
+        x: 492,
+        y: 214,
+        radius: 28,
+        restitution: 1.18,
+        color: '#14B8A6',
+        accentColor: '#FFFDF5',
+        style: 'candy',
+      },
+      {
+        id: 'l17-candy-4',
+        x: 526,
+        y: 348,
+        radius: 25,
+        restitution: 1.18,
+        color: '#F97316',
+        accentColor: '#FFFDF5',
+        style: 'candy',
+      },
+    ],
+    rotators: [],
+    hazards: [],
+    decor: [
+      { kind: 'lollipop', x: 676, y: 110, scale: 1.08, color: '#EC4899' },
+      { kind: 'lollipop', x: 784, y: 108, scale: 0.96, color: '#38BDF8' },
+      { kind: 'gumdrop', x: 730, y: 122, scale: 0.92, color: '#FACC15' },
+      { kind: 'lollipop', x: 144, y: 432, scale: 1.05, color: '#14B8A6' },
+      { kind: 'lollipop', x: 248, y: 444, scale: 0.94, color: '#F97316' },
+      { kind: 'jellybean', x: 196, y: 438, scale: 0.95 },
+      { kind: 'gumdrop', x: 316, y: 60, scale: 0.88, color: '#EC4899' },
+      { kind: 'jellybean', x: 468, y: 58, scale: 0.9 },
+      { kind: 'gumdrop', x: 486, y: 480, scale: 0.9, color: '#34D399' },
+      { kind: 'jellybean', x: 684, y: 478, scale: 0.92 },
+    ],
+  },
+
+  // ===========================================================================
+  // LEVEL 18: Chocolate Conveyor (Candy Factory, Par 4)
+  // ===========================================================================
+  {
+    id: 18,
+    name: 'Chocolate Conveyor',
+    subtitle: 'Ride two moving conveyor belts into the narrow chocolate putting chute',
+    par: 4,
+    theme: 'candy',
+    turfStyle: 'chocolate',
+    worldWidth: WORLD_WIDTH,
+    worldHeight: WORLD_HEIGHT,
+    tee: { x: 178, y: 386 },
+    hole: { x: 760, y: 270 },
+    holeRadius: HOLE_RADIUS,
+    turfPolygons: [
+      {
+        points: [
+          { x: 90, y: 104 },
+          { x: 580, y: 104 },
+          { x: 618, y: 222 },
+          { x: 814, y: 222 },
+          { x: 814, y: 318 },
+          { x: 618, y: 318 },
+          { x: 580, y: 436 },
+          { x: 90, y: 436 },
+        ],
+      },
+    ],
+    walls: [
+      ...makePolygonBorders(
+        [
+          { x: 90, y: 104 },
+          { x: 580, y: 104 },
+          { x: 618, y: 222 },
+          { x: 814, y: 222 },
+          { x: 814, y: 318 },
+          { x: 618, y: 318 },
+          { x: 580, y: 436 },
+          { x: 90, y: 436 },
+        ],
+        'l18',
+        'candy-cane'
+      ),
+      // Left candy-cane divider separating tee/elevator lane from center chocolate chamber
+      {
+        id: 'l18-cane-1',
+        x: 266,
+        y: 326,
+        w: 22,
+        h: 220,
+        angle: 0,
+        kind: 'candy-cane',
+      },
+      // Right candy-cane divider funneling players onto the lower rightward conveyor
+      {
+        id: 'l18-cane-2',
+        x: 438,
+        y: 208,
+        w: 22,
+        h: 208,
+        angle: 0,
+        kind: 'candy-cane',
+      },
+      // Center jellybean baffle for clean ricochet angles
+      {
+        id: 'l18-jb-center',
+        x: 352,
+        y: 214,
+        w: 24,
+        h: 64,
+        angle: 0.22,
+        kind: 'jellybean',
+      },
+      // Top-left angled candy-cane corner bank guiding fast Conveyor 1 exits rightward
+      {
+        id: 'l18-angle-tl',
+        x: 116,
+        y: 130,
+        w: 58,
+        h: 16,
+        angle: -Math.PI / 4,
+        kind: 'candy-cane',
+      },
+    ],
+    bumpers: [],
+    rotators: [],
+    conveyors: [
+      // Conveyor Belt 1: Left upward belt carrying ball cleanly into open upper chocolate apron
+      {
+        id: 'l18-belt-1',
+        x: 178,
+        y: 254,
+        w: 72,
+        h: 136,
+        dirX: 0,
+        dirY: -1,
+        strength: 230,
+        beltSpeed: 68,
+        targetSpeed: 165,
+      },
+      // Conveyor Belt 2: Lower rightward belt gliding ball toward the narrow final putting chute
+      {
+        id: 'l18-belt-2',
+        x: 426,
+        y: 374,
+        w: 172,
+        h: 72,
+        dirX: 1,
+        dirY: 0,
+        strength: 230,
+        beltSpeed: 68,
+        targetSpeed: 165,
+      },
+    ],
+    hazards: [],
+    decor: [
+      { kind: 'lollipop', x: 678, y: 122, scale: 1.06, color: '#EC4899' },
+      { kind: 'lollipop', x: 786, y: 120, scale: 0.96, color: '#FACC15' },
+      { kind: 'gumdrop', x: 732, y: 146, scale: 0.9, color: '#34D399' },
+      { kind: 'lollipop', x: 678, y: 416, scale: 1.02, color: '#38BDF8' },
+      { kind: 'lollipop', x: 786, y: 418, scale: 0.95, color: '#F97316' },
+      { kind: 'jellybean', x: 732, y: 400, scale: 0.94 },
+      { kind: 'gumdrop', x: 248, y: 56, scale: 0.86, color: '#EC4899' },
+      { kind: 'jellybean', x: 438, y: 56, scale: 0.88 },
+      { kind: 'gumdrop', x: 268, y: 484, scale: 0.88, color: '#FACC15' },
+      { kind: 'jellybean', x: 472, y: 484, scale: 0.88 },
     ],
   },
 ];

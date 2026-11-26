@@ -62,14 +62,17 @@ test('getMaxStrokes and calculateStars follow Par + 3 limit and 3/2/1/0 star rul
   assert.equal(clutch.isLastChance, true);
 });
 
-test('COURSE_WORLDS defines 6 themed worlds (4 playable covering Holes 1-16 + 2 Coming Soon covering Holes 17-24)', () => {
+test('COURSE_WORLDS defines 6 themed worlds (5 playable covering Holes 1-18 + Holes 19-24 Coming Soon)', () => {
   assert.equal(COURSE_WORLDS.length, 6);
-  assert.equal(PLAYABLE_WORLDS.length, 4);
+  assert.equal(PLAYABLE_WORLDS.length, 5);
+  assert.equal(LEVELS.length, 18);
 
-  const playableIds = PLAYABLE_WORLDS.flatMap((w) => w.holeIds);
-  assert.equal(playableIds.length, LEVELS.length);
+  const implementedInPlayableWorlds = PLAYABLE_WORLDS.flatMap((w) => w.holeIds).filter((id) =>
+    isHoleImplemented(id)
+  );
+  assert.equal(implementedInPlayableWorlds.length, LEVELS.length);
   assert.deepEqual(
-    playableIds,
+    implementedInPlayableWorlds,
     LEVELS.map((l) => l.id)
   );
 
@@ -82,14 +85,18 @@ test('COURSE_WORLDS defines 6 themed worlds (4 playable covering Holes 1-16 + 2 
   assert.equal(getWorldForLevelId(11).id, 'neon-nights');
   assert.equal(getWorldForLevelId(16).id, 'frost-falls');
   assert.equal(getWorldForLevelId(17).id, 'candy-factory');
+  assert.equal(getWorldForLevelId(18).id, 'candy-factory');
   assert.equal(getWorldForLevelId(24).id, 'clockwork-carnival');
 
   const candy = getWorldById('candy-factory');
   const carnival = getWorldById('clockwork-carnival');
-  assert.equal(candy.comingSoon, true);
+  assert.equal(candy.comingSoon, false);
   assert.equal(carnival.comingSoon, true);
   assert.equal(isHoleImplemented(16), true);
-  assert.equal(isHoleImplemented(17), false);
+  assert.equal(isHoleImplemented(17), true);
+  assert.equal(isHoleImplemented(18), true);
+  assert.equal(isHoleImplemented(19), false);
+  assert.equal(isHoleImplemented(20), false);
   assert.equal(isHoleImplemented(24), false);
 });
 
@@ -137,27 +144,46 @@ test('recordHoleCompletion saves best strokes, unlocks next implemented hole, tr
   assert.deepEqual(store.holes[1], { bestStrokes: 2, stars: 3 });
   assert.equal(store.totalStars, 3);
 
-  // Completing Hole 16 caps lastUnlockedHole at 16 and never unlocks Holes 17-24 or Coming Soon worlds
+  // Completing Hole 16 unlocks Hole 17 & Candy Factory; completing Hole 18 caps at 18 and never unlocks Holes 19-24
   store = recordHoleCompletion(store, 16, 5, 5).progress;
-  assert.equal(store.lastUnlockedHole, 16);
-  assert.equal(isHoleUnlocked(store, 17), false);
-  assert.equal(isWorldUnlocked(store, getWorldById('candy-factory')), false);
+  assert.equal(store.lastUnlockedHole, 17);
+  assert.equal(isHoleUnlocked(store, 17), true);
+  assert.equal(isHoleUnlocked(store, 18), false);
+  assert.equal(isWorldUnlocked(store, getWorldById('candy-factory')), true);
+  assert.equal(isWorldUnlocked(store, getWorldById('clockwork-carnival')), false);
+
+  store = recordHoleCompletion(store, 17, 3, 3).progress;
+  assert.equal(store.lastUnlockedHole, 18);
+  assert.equal(isHoleUnlocked(store, 18), true);
+
+  store = recordHoleCompletion(store, 18, 4, 4).progress;
+  assert.equal(store.lastUnlockedHole, 18);
+  assert.equal(isHoleUnlocked(store, 19), false);
+  assert.equal(isHoleUnlocked(store, 20), false);
   assert.equal(isWorldUnlocked(store, getWorldById('clockwork-carnival')), false);
 });
 
-test('getWorldStats and getOverallProgressStats handle playable and Coming Soon worlds accurately', () => {
+test('getWorldStats and getOverallProgressStats handle playable, partially implemented, and Coming Soon worlds accurately', () => {
   let store = createEmptyProgress();
   const frostWorld = getWorldById('frost-falls');
   const candyWorld = getWorldById('candy-factory');
+  const carnivalWorld = getWorldById('clockwork-carnival');
 
   assert.equal(getWorldStats(store, frostWorld).status, 'not_started');
   assert.equal(getWorldStats(store, frostWorld).earnedStars, 0);
 
   const candyStats = getWorldStats(store, candyWorld);
-  assert.equal(candyStats.status, 'coming_soon');
-  assert.equal(candyStats.implementedHoles, 0);
+  assert.equal(candyStats.status, 'not_started');
+  assert.equal(candyStats.implementedHoles, 2);
   assert.equal(candyStats.totalHoles, 4);
-  assert.equal(candyStats.totalPar, null);
+  assert.equal(candyStats.maxStars, 6);
+  assert.equal(candyStats.totalPar, 7);
+
+  const carnivalStats = getWorldStats(store, carnivalWorld);
+  assert.equal(carnivalStats.status, 'coming_soon');
+  assert.equal(carnivalStats.implementedHoles, 0);
+  assert.equal(carnivalStats.totalHoles, 4);
+  assert.equal(carnivalStats.totalPar, null);
 
   // Clear 2 of 4 Frost Falls holes: H13 Par 3 in 2 (3 stars), H14 Par 4 in 4 (Par -> 3 stars)
   store = recordHoleCompletion(store, 13, 2, 3).progress;
@@ -177,15 +203,15 @@ test('getWorldStats and getOverallProgressStats handle playable and Coming Soon 
   assert.equal(done.completedCount, 4);
   assert.equal(done.earnedStars, 9);
   assert.equal(done.bestWorldStrokes, 19);
-  assert.equal(store.lastUnlockedHole, 16);
+  assert.equal(store.lastUnlockedHole, 17);
 
   const overall = getOverallProgressStats(store);
   assert.equal(overall.completedHoles, 4);
-  assert.equal(overall.totalHoles, 16);
+  assert.equal(overall.totalHoles, 18);
   assert.equal(overall.earnedStars, 9);
-  assert.equal(overall.maxStars, 48);
+  assert.equal(overall.maxStars, 54);
   assert.equal(overall.completedWorlds, 1);
-  assert.equal(overall.playableWorlds, 4);
+  assert.equal(overall.playableWorlds, 5);
   assert.equal(overall.totalWorlds, 6);
 });
 

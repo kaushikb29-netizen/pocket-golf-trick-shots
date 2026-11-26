@@ -231,7 +231,9 @@ function drawGardenIsland(
     54
   );
   ctx.fillStyle =
-    theme === 'frost'
+    theme === 'candy'
+      ? 'rgba(255, 241, 246, 0.52)'
+      : theme === 'frost'
       ? 'rgba(224, 242, 254, 0.36)'
       : theme === 'garden'
       ? 'rgba(255, 250, 224, 0.28)'
@@ -243,7 +245,9 @@ function drawGardenIsland(
   // Island drop shadow
   drawRoundedRectPath(ctx, rx + 4, ry + 12, rw, rh, 44);
   ctx.fillStyle =
-    theme === 'frost'
+    theme === 'candy'
+      ? 'rgba(124, 45, 76, 0.24)'
+      : theme === 'frost'
       ? 'rgba(15, 42, 74, 0.34)'
       : theme === 'garden'
       ? 'rgba(20, 68, 32, 0.28)'
@@ -253,7 +257,19 @@ function drawGardenIsland(
   // Deck fill tuned per theme
   drawRoundedRectPath(ctx, rx, ry, rw, rh, 44);
   const sandGrad = ctx.createLinearGradient(rx, ry, rx, ry + rh);
-  if (theme === 'frost') {
+  if (theme === 'candy') {
+    if (level.turfStyle === 'chocolate') {
+      // Warm vanilla-wafer candy factory floor framing the chocolate pathways
+      sandGrad.addColorStop(0, '#FFF8EB');
+      sandGrad.addColorStop(0.55, '#FDE8C8');
+      sandGrad.addColorStop(1, '#F2CFA1');
+    } else {
+      // Soft strawberry-cream frosting deck for Sugar Rush
+      sandGrad.addColorStop(0, '#FFF5F9');
+      sandGrad.addColorStop(0.55, '#FCE4F0');
+      sandGrad.addColorStop(1, '#F8CBE1');
+    }
+  } else if (theme === 'frost') {
     sandGrad.addColorStop(0, '#F7FCFF');
     sandGrad.addColorStop(0.55, '#E3F2FD');
     sandGrad.addColorStop(1, '#C9E3F8');
@@ -274,7 +290,11 @@ function drawGardenIsland(
   ctx.fill();
   ctx.lineWidth = 4;
   ctx.strokeStyle =
-    theme === 'frost'
+    theme === 'candy'
+      ? level.turfStyle === 'chocolate'
+        ? '#9A5124'
+        : '#DB2777'
+      : theme === 'frost'
       ? '#7AA7CC'
       : theme === 'beach'
       ? '#CE8D38'
@@ -362,6 +382,39 @@ function drawGardenIsland(
       ctx.beginPath();
       ctx.arc(sx, sy, (i % 3) + 1.4, 0, Math.PI * 2);
       ctx.fill();
+    }
+  } else if (theme === 'candy') {
+    // Subtle pastel candy-factory wafer tiles & scattered sugar sprinkles on deck
+    ctx.strokeStyle =
+      level.turfStyle === 'chocolate'
+        ? 'rgba(154, 81, 36, 0.12)'
+        : 'rgba(219, 39, 119, 0.1)';
+    ctx.lineWidth = 1.6;
+    for (let x = rx + 56; x < rx + rw; x += 64) {
+      ctx.beginPath();
+      ctx.moveTo(x, ry);
+      ctx.lineTo(x, ry + rh);
+      ctx.stroke();
+    }
+    for (let y = ry + 56; y < ry + rh; y += 64) {
+      ctx.beginPath();
+      ctx.moveTo(rx, y);
+      ctx.lineTo(rx + rw, y);
+      ctx.stroke();
+    }
+
+    const sprinkleColors = ['#EC4899', '#34D399', '#FACC15', '#38BDF8', '#A855F7'];
+    for (let i = 0; i < 36; i++) {
+      const sx = rx + ((i * 89 + 37) % (rw - 36)) + 18;
+      const sy = ry + ((i * 53 + 23) % (rh - 36)) + 18;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(((i * 37) % 180) * (Math.PI / 180));
+      ctx.fillStyle = sprinkleColors[i % sprinkleColors.length];
+      ctx.globalAlpha = 0.55;
+      drawRoundedRectPath(ctx, -4.5, -1.8, 9, 3.6, 1.8);
+      ctx.fill();
+      ctx.restore();
     }
   } else if (theme === 'beach') {
     ctx.strokeStyle = 'rgba(196, 134, 48, 0.16)';
@@ -675,6 +728,115 @@ function drawDecorProp(ctx: CanvasRenderingContext2D, prop: DecorProp, time: num
     ctx.beginPath();
     ctx.ellipse(-2, -3, 11, 5.5, 0.1, 0, Math.PI * 2);
     ctx.fill();
+  } else if (prop.kind === 'lollipop') {
+    const mainColor = prop.color || '#EC4899';
+    // Soft pastel shadow
+    ctx.fillStyle = 'rgba(124, 45, 76, 0.18)';
+    ctx.beginPath();
+    ctx.ellipse(5, 8, 22, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Crisp white lollipop stick angled slightly downward
+    ctx.strokeStyle = '#9D7A62';
+    ctx.lineWidth = 7.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 6);
+    ctx.lineTo(-10, 26);
+    ctx.stroke();
+    ctx.strokeStyle = '#FFFDF9';
+    ctx.lineWidth = 4.6;
+    ctx.stroke();
+
+    // Giant candy lollipop head
+    ctx.beginPath();
+    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+    ctx.fillStyle = mainColor;
+    ctx.fill();
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = '#6B1839';
+    ctx.stroke();
+
+    // Cream candy spiral swirl
+    ctx.strokeStyle = '#FFFDF5';
+    ctx.lineWidth = 3.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let t = 0; t <= 16; t += 0.35) {
+      const r = t * 0.96;
+      const a = t * 0.72;
+      const px = Math.cos(a) * r;
+      const py = Math.sin(a) * r;
+      if (t === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // Glossy candy wrapper sheen
+    ctx.beginPath();
+    ctx.arc(-6.5, -7, 5, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.52)';
+    ctx.fill();
+  } else if (prop.kind === 'gumdrop') {
+    const color = prop.color || '#34D399';
+    ctx.fillStyle = 'rgba(92, 43, 15, 0.18)';
+    ctx.beginPath();
+    ctx.ellipse(3, 6, 17, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rounded sugar-dusted gumdrop dome
+    ctx.beginPath();
+    ctx.arc(0, 0, 15.5, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = '#522810';
+    ctx.stroke();
+
+    // Sugar crystal dots
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    const dots = [
+      [-6, -5],
+      [4, -7],
+      [7, 2],
+      [-4, 5],
+      [1, 1],
+    ];
+    for (const [dx, dy] of dots) {
+      ctx.beginPath();
+      ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (prop.kind === 'jellybean') {
+    // Cluster of 3 colorful glossy jellybeans
+    const beans = [
+      { x: -10, y: 2, rot: -0.45, fill: '#EC4899' },
+      { x: 9, y: 4, rot: 0.55, fill: '#FACC15' },
+      { x: 0, y: -7, rot: 0.1, fill: '#34D399' },
+    ];
+    for (const b of beans) {
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.rot);
+      ctx.fillStyle = 'rgba(82, 40, 16, 0.18)';
+      ctx.beginPath();
+      ctx.ellipse(2, 3, 10, 6.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 10, 6.2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = b.fill;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#522810';
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.ellipse(-2.5, -2.2, 4.2, 1.8, -0.2, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
   ctx.restore();
@@ -683,6 +845,8 @@ function drawDecorProp(ctx: CanvasRenderingContext2D, prop: DecorProp, time: num
 function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
   const isNeon = level.theme === 'neon';
   const isFrost = level.theme === 'frost';
+  const isCandy = level.theme === 'candy';
+  const isChocolate = isCandy && level.turfStyle === 'chocolate';
 
   for (const poly of level.turfPolygons) {
     if (poly.points.length < 3) continue;
@@ -695,15 +859,31 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
     }
     ctx.closePath();
 
-    // Base putting surface color (frosty alpine blue for Frost Falls — clear contrast with bright cyan-white ice & white golf ball)
-    ctx.fillStyle = isNeon ? '#26124D' : isFrost ? '#5594B4' : '#38B85C';
+    // Base putting surface color
+    ctx.fillStyle = isNeon
+      ? '#26124D'
+      : isFrost
+      ? '#5594B4'
+      : isChocolate
+      ? '#7C4426'
+      : isCandy
+      ? '#3ED49C'
+      : '#38B85C';
     ctx.fill();
 
     // Clip stripes & lane markings inside turf polygon
     ctx.clip();
 
     const stripeWidth = 42;
-    ctx.fillStyle = isNeon ? '#1E0E3E' : isFrost ? '#4A86A6' : '#2FA752';
+    ctx.fillStyle = isNeon
+      ? '#1E0E3E'
+      : isFrost
+      ? '#4A86A6'
+      : isChocolate
+      ? '#6B381E'
+      : isCandy
+      ? '#32BE8A'
+      : '#2FA752';
     for (let x = 0; x < level.worldWidth + stripeWidth; x += stripeWidth * 2) {
       ctx.fillRect(x, 0, stripeWidth, level.worldHeight);
     }
@@ -713,9 +893,51 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
       ? 'rgba(9, 4, 24, 0.55)'
       : isFrost
       ? 'rgba(20, 56, 86, 0.34)'
+      : isChocolate
+      ? 'rgba(42, 18, 8, 0.42)'
+      : isCandy
+      ? 'rgba(13, 94, 68, 0.25)'
       : 'rgba(13, 74, 34, 0.28)';
     ctx.lineWidth = 14;
     ctx.stroke();
+
+    if (isChocolate) {
+      // Subtle molded chocolate bar highlights & caramel runway sheen inside the narrow final putting chute
+      ctx.strokeStyle = 'rgba(251, 191, 36, 0.14)';
+      ctx.lineWidth = 2;
+      for (let y = 140; y < 420; y += 54) {
+        ctx.beginPath();
+        ctx.moveTo(90, y);
+        ctx.lineTo(590, y);
+        ctx.stroke();
+      }
+
+      if (level.id === 18) {
+        // Creamy caramel-frosting guide lane highlighting the narrow final putting area
+        ctx.save();
+        ctx.fillStyle = 'rgba(253, 230, 138, 0.12)';
+        ctx.fillRect(618, 226, 192, 88);
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.46)';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([10, 8]);
+        ctx.beginPath();
+        ctx.moveTo(626, 270);
+        ctx.lineTo(732, 270);
+        ctx.stroke();
+        ctx.restore();
+      }
+    } else if (isCandy) {
+      // Delicate pastel frosting shimmer specks on mint candy fairway
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+      for (let x = 108; x < level.worldWidth - 90; x += 46) {
+        for (let y = 118; y < level.worldHeight - 90; y += 44) {
+          const ox = ((x + y) % 15) - 7;
+          ctx.beginPath();
+          ctx.arc(x + ox, y, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
 
     if (isFrost) {
       // Subtle matte snow-grain stipple on normal winter turf so it reads distinctly matte vs glossy ice
@@ -810,15 +1032,43 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
   // Draw crisp tee-off mat around starting tee
   ctx.save();
   drawRoundedRectPath(ctx, level.tee.x - 24, level.tee.y - 34, 48, 68, 10);
-  ctx.fillStyle = isNeon ? '#160B33' : isFrost ? '#356E8E' : '#258D44';
+  ctx.fillStyle = isNeon
+    ? '#160B33'
+    : isFrost
+    ? '#356E8E'
+    : isChocolate
+    ? '#4E2613'
+    : isCandy
+    ? '#DB2777'
+    : '#258D44';
   ctx.fill();
   ctx.lineWidth = 2.5;
-  ctx.strokeStyle = isNeon ? '#38BDF8' : isFrost ? '#BAE6FD' : '#7CE696';
+  ctx.strokeStyle = isNeon
+    ? '#38BDF8'
+    : isFrost
+    ? '#BAE6FD'
+    : isChocolate
+    ? '#FBBF24'
+    : isCandy
+    ? '#FFF1F2'
+    : '#7CE696';
   ctx.stroke();
 
   // Small tee markers
-  ctx.fillStyle = isNeon ? '#F43F8E' : isFrost ? '#E0F2FE' : '#FFFFFF';
-  ctx.strokeStyle = isNeon ? '#FDF2F8' : isFrost ? '#0C4A6E' : '#1E5B31';
+  ctx.fillStyle = isNeon
+    ? '#F43F8E'
+    : isFrost
+    ? '#E0F2FE'
+    : isCandy
+    ? '#FDE047'
+    : '#FFFFFF';
+  ctx.strokeStyle = isNeon
+    ? '#FDF2F8'
+    : isFrost
+    ? '#0C4A6E'
+    : isCandy
+    ? '#6B1839'
+    : '#1E5B31';
   ctx.lineWidth = 2;
   for (const dy of [-22, 22]) {
     ctx.beginPath();
@@ -832,6 +1082,8 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
     ? 'rgba(56, 189, 248, 0.7)'
     : isFrost
     ? 'rgba(224, 242, 254, 0.78)'
+    : isCandy
+    ? 'rgba(255, 245, 248, 0.75)'
     : 'rgba(255, 255, 255, 0.5)';
   ctx.beginPath();
   ctx.arc(level.tee.x, level.tee.y, 4, 0, Math.PI * 2);
@@ -1013,6 +1265,129 @@ function drawIceHazards(ctx: CanvasRenderingContext2D, level: LevelDefinition): 
   }
 
   ctx.restore();
+}
+
+function drawConveyors(
+  ctx: CanvasRenderingContext2D,
+  level: LevelDefinition,
+  elapsedTime: number
+): void {
+  const conveyors = level.conveyors;
+  if (!conveyors || conveyors.length === 0) return;
+
+  for (const belt of conveyors) {
+    const dirLen = Math.hypot(belt.dirX, belt.dirY);
+    if (dirLen < 1e-4) continue;
+    const ux = belt.dirX / dirLen;
+    const uy = belt.dirY / dirLen;
+    const moveAngle = Math.atan2(uy, ux);
+
+    // Align belt local +X axis with movement direction so slats & chevrons always scroll toward +X
+    const verticalOriented = Math.abs(uy) > Math.abs(ux);
+    const beltLen = verticalOriented ? belt.h : belt.w;
+    const beltWid = verticalOriented ? belt.w : belt.h;
+    const halfL = beltLen / 2;
+    const halfW = beltWid / 2;
+
+    ctx.save();
+    ctx.translate(belt.x, belt.y);
+    ctx.rotate(moveAngle);
+
+    // Soft industrial recess shadow under belt
+    drawRoundedRectPath(ctx, -halfL - 2, -halfW - 2, beltLen + 4, beltWid + 4, 10);
+    ctx.fillStyle = 'rgba(30, 12, 6, 0.35)';
+    ctx.fill();
+
+    // Metallic brass/caramel side rails along belt edges
+    drawRoundedRectPath(ctx, -halfL, -halfW, beltLen, beltWid, 8);
+    ctx.fillStyle = '#3B1E13';
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#F59E0B';
+    ctx.stroke();
+
+    // Side guard trim bars with bolts
+    ctx.fillStyle = '#D97706';
+    ctx.fillRect(-halfL + 6, -halfW, beltLen - 12, 5.5);
+    ctx.fillRect(-halfL + 6, halfW - 5.5, beltLen - 12, 5.5);
+
+    // Clipped dark espresso rubber conveyor track with scrolling slats & bright yellow directional arrows
+    const innerTop = -halfW + 6;
+    const innerH = beltWid - 12;
+    ctx.save();
+    drawRoundedRectPath(ctx, -halfL + 5, innerTop, beltLen - 10, innerH, 5);
+    ctx.clip();
+
+    // Belt rubber base
+    ctx.fillStyle = '#2B160F';
+    ctx.fillRect(-halfL, innerTop, beltLen, innerH);
+
+    // Scrolling conveyor belt treads/slats moving in +X (indicated belt direction)
+    const slatSpacing = 22;
+    const scrollOffset = ((elapsedTime * belt.beltSpeed) % slatSpacing + slatSpacing) % slatSpacing;
+    ctx.fillStyle = '#47261A';
+    for (let sx = -halfL - slatSpacing + scrollOffset; sx <= halfL + slatSpacing; sx += slatSpacing) {
+      ctx.fillRect(sx, innerTop, 8, innerH);
+    }
+
+    // Subtle glossy strip along center of belt
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.08)';
+    ctx.fillRect(-halfL, -innerH * 0.22, beltLen, innerH * 0.44);
+
+    // Bold animated directional chevron arrows (>>>) pointing clearly toward +X
+    const arrowSpacing = 36;
+    const arrowOffset = ((elapsedTime * belt.beltSpeed) % arrowSpacing + arrowSpacing) % arrowSpacing;
+    const chevHalfH = Math.min(14, innerH * 0.32);
+    const chevDepth = 10;
+
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (let ax = -halfL - arrowSpacing + arrowOffset; ax <= halfL + arrowSpacing; ax += arrowSpacing) {
+      // Dark outline for crisp contrast
+      ctx.beginPath();
+      ctx.moveTo(ax - chevDepth * 0.5, -chevHalfH);
+      ctx.lineTo(ax + chevDepth * 0.6, 0);
+      ctx.lineTo(ax - chevDepth * 0.5, chevHalfH);
+      ctx.strokeStyle = '#3B1D0E';
+      ctx.lineWidth = 7.5;
+      ctx.stroke();
+
+      // Bright sunny yellow directional chevron
+      ctx.beginPath();
+      ctx.moveTo(ax - chevDepth * 0.5, -chevHalfH);
+      ctx.lineTo(ax + chevDepth * 0.6, 0);
+      ctx.lineTo(ax - chevDepth * 0.5, chevHalfH);
+      ctx.strokeStyle = '#FDE047';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Cream-white core glint
+      ctx.beginPath();
+      ctx.moveTo(ax - chevDepth * 0.35, -chevHalfH * 0.72);
+      ctx.lineTo(ax + chevDepth * 0.42, 0);
+      ctx.lineTo(ax - chevDepth * 0.35, chevHalfH * 0.72);
+      ctx.strokeStyle = '#FFFDF5';
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // End rollers (entry & exit cylinders)
+    for (const rx of [-halfL + 4, halfL - 4]) {
+      drawRoundedRectPath(ctx, rx - 3.5, -halfW + 3, 7, beltWid - 6, 3.5);
+      const rollerGrad = ctx.createLinearGradient(rx - 3.5, 0, rx + 3.5, 0);
+      rollerGrad.addColorStop(0, '#92400E');
+      rollerGrad.addColorStop(0.5, '#FCD34D');
+      rollerGrad.addColorStop(1, '#78350F');
+      ctx.fillStyle = rollerGrad;
+      ctx.fill();
+      ctx.lineWidth = 1.6;
+      ctx.strokeStyle = '#3B1D0E';
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
 }
 
 function drawIceSparkles(
@@ -1206,6 +1581,43 @@ function drawThemeAmbience(
   }
 
   ctx.save();
+  if (theme === 'candy') {
+    // Lightweight pastel candy sprinkles & sugar sparkles drifting gently around viewport margins
+    const candyPalette = ['#EC4899', '#34D399', '#FACC15', '#38BDF8', '#FFFFFF'];
+    for (let i = 0; i < 24; i++) {
+      const seed = i * 113.7;
+      const x =
+        (((seed * 8.9 + time * (10 + (i % 4) * 3) + Math.sin(time * 1.1 + i) * 14) % (width + 40)) +
+          (width + 40)) %
+          (width + 40) -
+        20;
+      const y =
+        (((seed * 4.7 + time * (12 + (i % 3) * 4)) % (height + 30)) + (height + 30)) %
+          (height + 30) -
+        15;
+      const nx = x / Math.max(1, width);
+      const ny = y / Math.max(1, height);
+      if (nx > 0.13 && nx < 0.87 && ny > 0.14 && ny < 0.86) continue;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(time * (i % 2 === 0 ? 0.9 : -0.8) + i);
+      ctx.globalAlpha = 0.58;
+      ctx.fillStyle = candyPalette[i % candyPalette.length];
+      if (i % 3 === 0) {
+        ctx.beginPath();
+        ctx.arc(0, 0, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        drawRoundedRectPath(ctx, -4, -1.6, 8, 3.2, 1.6);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+    return;
+  }
+
   if (theme === 'neon') {
     // Subtle pulsing neon grid star-beacons around the outer viewport perimeter
     for (let i = 0; i < 18; i++) {
@@ -1382,10 +1794,10 @@ function drawHoleAndFlag(
   ctx.quadraticCurveTo(x + 19, poleTopY + 5 + wave1, x + 36, poleTopY + 13 + wave2);
   ctx.quadraticCurveTo(x + 19, poleTopY + 21 + wave1, x + 1, poleTopY + 25);
   ctx.closePath();
-  ctx.fillStyle = isNeon ? '#F43F8E' : '#FF4D4F';
+  ctx.fillStyle = isNeon ? '#F43F8E' : level.theme === 'candy' ? '#EC4899' : '#FF4D4F';
   ctx.fill();
   ctx.lineWidth = 2;
-  ctx.strokeStyle = isNeon ? '#FBCFE8' : '#7F1D1D';
+  ctx.strokeStyle = isNeon ? '#FBCFE8' : level.theme === 'candy' ? '#831843' : '#7F1D1D';
   ctx.stroke();
 
   // Finial ball atop pole
@@ -1552,6 +1964,105 @@ function drawWoodenWall(
     drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
     ctx.lineWidth = 2.6;
     ctx.strokeStyle = '#0C4A6E';
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (wall.kind === 'candy-cane') {
+    // Soft cast shadow
+    ctx.save();
+    ctx.translate(4, 6);
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    ctx.fillStyle = 'rgba(82, 24, 48, 0.28)';
+    ctx.fill();
+    ctx.restore();
+
+    // Glossy peppermint-white candy cane base
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    ctx.fillStyle = '#FFFDF9';
+    ctx.fill();
+
+    // Crisp red-and-pink diagonal barber-pole candy stripes clipped inside barrier
+    ctx.save();
+    drawRoundedRectPath(ctx, -hw + 1, -hh + 1, wall.w - 2, wall.h - 2, Math.max(2, radius - 1));
+    ctx.clip();
+
+    const span = wall.w + wall.h + 40;
+    const stripePeriod = 26;
+    const stripeW = 12;
+    ctx.fillStyle = '#EF4444';
+    for (let s = -span; s <= span; s += stripePeriod) {
+      ctx.beginPath();
+      ctx.moveTo(s, -hh - 6);
+      ctx.lineTo(s + stripeW, -hh - 6);
+      ctx.lineTo(s + stripeW - wall.h - 12, hh + 6);
+      ctx.lineTo(s - wall.h - 12, hh + 6);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Glossy sugar glaze highlight band
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.38)';
+    if (wall.w >= wall.h) {
+      ctx.fillRect(-hw, -hh, wall.w, Math.min(5.5, wall.h * 0.3));
+    } else {
+      ctx.fillRect(-hw, -hh, Math.min(5.5, wall.w * 0.3), wall.h);
+    }
+    ctx.restore();
+
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, radius);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = '#7F1D1D';
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  if (wall.kind === 'jellybean') {
+    const capsuleRadius = Math.min(hw, hh);
+    // Soft shadow
+    ctx.save();
+    ctx.translate(4, 6);
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, capsuleRadius);
+    ctx.fillStyle = 'rgba(82, 24, 48, 0.28)';
+    ctx.fill();
+    ctx.restore();
+
+    // Deterministic playful jellybean flavor palette by wall id
+    const hash = wall.id.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const flavors: [string, string, string][] = [
+      ['#F472B6', '#EC4899', '#9D174D'], // Strawberry
+      ['#FDE047', '#F59E0B', '#92400E'], // Lemon
+      ['#6EE7B7', '#10B981', '#065F46'], // Mint
+      ['#C084FC', '#9333EA', '#581C87'], // Grape
+    ];
+    const [hi, mid, rim] = flavors[hash % flavors.length];
+
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, capsuleRadius);
+    const jbGrad = ctx.createLinearGradient(-hw, -hh, hw, hh);
+    jbGrad.addColorStop(0, hi);
+    jbGrad.addColorStop(0.55, mid);
+    jbGrad.addColorStop(1, rim);
+    ctx.fillStyle = jbGrad;
+    ctx.fill();
+
+    // Specular glossy bean highlight
+    ctx.save();
+    drawRoundedRectPath(ctx, -hw + 2, -hh + 2, wall.w - 4, wall.h - 4, Math.max(2, capsuleRadius - 2));
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.48)';
+    if (wall.w >= wall.h) {
+      drawRoundedRectPath(ctx, -hw + 7, -hh + 3.5, wall.w - 14, Math.max(4, wall.h * 0.24), 4);
+    } else {
+      drawRoundedRectPath(ctx, -hw + 3.5, -hh + 7, Math.max(4, wall.w * 0.24), wall.h - 14, 4);
+    }
+    ctx.fill();
+    ctx.restore();
+
+    drawRoundedRectPath(ctx, -hw, -hh, wall.w, wall.h, capsuleRadius);
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = '#522810';
     ctx.stroke();
     ctx.restore();
     return;
@@ -1989,6 +2500,72 @@ function drawBumper(
     ctx.beginPath();
     ctx.arc(-bumper.radius * 0.28, -bumper.radius * 0.3, bumper.radius * 0.26, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.fill();
+
+    ctx.restore();
+    return;
+  }
+
+  if (bumper.style === 'candy') {
+    // Candy factory drop shadow
+    ctx.beginPath();
+    ctx.arc(4, 6, bumper.radius, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(92, 24, 52, 0.28)';
+    ctx.fill();
+
+    // Juicy pastel pulse halo on bounce
+    if (pulse > 0.05) {
+      ctx.beginPath();
+      ctx.arc(0, 0, bumper.radius + 6 + pulse * 5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(251, 207, 232, ${(pulse * 0.58).toFixed(2)})`;
+      ctx.fill();
+    }
+
+    // Creamy peppermint candy base
+    ctx.beginPath();
+    ctx.arc(0, 0, bumper.radius, 0, Math.PI * 2);
+    ctx.fillStyle = bumper.accentColor || '#FFFDF5';
+    ctx.fill();
+
+    // 6-segment curved peppermint pinwheel wedges clipped inside bumper
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, 0, bumper.radius - 2, 0, Math.PI * 2);
+    ctx.clip();
+    const wedges = 6;
+    for (let i = 0; i < wedges; i++) {
+      if (i % 2 !== 0) continue;
+      const a0 = (i / wedges) * Math.PI * 2;
+      const a1 = ((i + 1) / wedges) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, bumper.radius, a0, a1);
+      ctx.closePath();
+      ctx.fillStyle = bumper.color;
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Outer crisp candy glaze border
+    ctx.beginPath();
+    ctx.arc(0, 0, bumper.radius, 0, Math.PI * 2);
+    ctx.lineWidth = 3.2;
+    ctx.strokeStyle = '#6B1839';
+    ctx.stroke();
+
+    // Center glossy sugar button
+    ctx.beginPath();
+    ctx.arc(0, 0, bumper.radius * 0.34, 0, Math.PI * 2);
+    ctx.fillStyle = bumper.color;
+    ctx.fill();
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = '#FFFDF5';
+    ctx.stroke();
+
+    // Specular candy sheen dot
+    ctx.beginPath();
+    ctx.arc(-bumper.radius * 0.28, -bumper.radius * 0.3, bumper.radius * 0.22, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
     ctx.fill();
 
     ctx.restore();
@@ -2540,7 +3117,11 @@ function drawStaticCourseLayer(
 ): void {
   const theme = level.theme ?? 'resort';
   const grad = ctx.createLinearGradient(0, 0, transform.width, transform.height);
-  if (theme === 'neon') {
+  if (theme === 'candy') {
+    grad.addColorStop(0, '#F9B4D2');
+    grad.addColorStop(0.5, '#FDE6B5');
+    grad.addColorStop(1, '#B9F3DC');
+  } else if (theme === 'neon') {
     grad.addColorStop(0, '#0B061E');
     grad.addColorStop(0.5, '#150A35');
     grad.addColorStop(1, '#0D0624');
@@ -2566,7 +3147,19 @@ function drawStaticCourseLayer(
 
   // Subtle decorative background pattern matched to theme
   ctx.save();
-  if (theme === 'neon') {
+  if (theme === 'candy') {
+    // Soft pastel polka dots across the candy-factory backdrop
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.24)';
+    const step = 64;
+    for (let y = 24; y < transform.height + 20; y += step) {
+      const shift = (Math.floor(y / step) % 2) * 32;
+      for (let x = 16; x < transform.width + 20; x += step) {
+        ctx.beginPath();
+        ctx.arc(x + shift, y, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (theme === 'neon') {
     ctx.strokeStyle = 'rgba(56, 189, 248, 0.08)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -2677,7 +3270,9 @@ export function renderFrame(
     }
     if (shakeX !== 0 || shakeY !== 0) {
       ctx.fillStyle =
-        level.theme === 'neon'
+        level.theme === 'candy'
+          ? '#F9B4D2'
+          : level.theme === 'neon'
           ? '#0D0624'
           : level.theme === 'frost'
           ? '#16406B'
@@ -2723,6 +3318,9 @@ export function renderFrame(
   if (level.theme === 'frost') {
     drawIceSparkles(ctx, level, sim.elapsedTime);
   }
+
+  // Animated moving conveyor belts with clear directional arrows
+  drawConveyors(ctx, level, sim.elapsedTime);
 
   // Shimmering water hazards
   drawWaterHazards(ctx, level, sim.elapsedTime);

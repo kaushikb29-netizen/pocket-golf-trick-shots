@@ -33,7 +33,9 @@ export function GameHud({
   const isExhausted = remaining === 0;
 
   const worldLabelColor =
-    level.theme === 'frost'
+    level.theme === 'candy'
+      ? 'text-[#BE185D]'
+      : level.theme === 'frost'
       ? 'text-[#0369A1]'
       : level.theme === 'neon'
       ? 'text-[#7E22CE]'
@@ -67,7 +69,13 @@ export function GameHud({
             <line x1="6" y1="21" x2="6" y2="4" stroke="#522810" strokeWidth="2.6" strokeLinecap="round" />
             <path
               d="M7 4.5 L20 9 L7 13.5 Z"
-              fill={level.theme === 'neon' ? '#F43F8E' : '#FF4D4F'}
+              fill={
+                level.theme === 'candy'
+                  ? '#EC4899'
+                  : level.theme === 'neon'
+                  ? '#F43F8E'
+                  : '#FF4D4F'
+              }
               stroke="#522810"
               strokeWidth="2"
               strokeLinejoin="round"
@@ -77,7 +85,13 @@ export function GameHud({
               cy="21"
               rx="4"
               ry="1.8"
-              fill={level.theme === 'frost' ? '#38BDF8' : '#2FA752'}
+              fill={
+                level.theme === 'candy'
+                  ? '#34D399'
+                  : level.theme === 'frost'
+                  ? '#38BDF8'
+                  : '#2FA752'
+              }
               stroke="#522810"
               strokeWidth="1.5"
             />

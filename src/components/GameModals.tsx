@@ -295,7 +295,7 @@ export function SettingsModal({
           {/* Reset Progress with Two-Step Confirmation */}
           <div className="rounded-2xl border-[3px] border-[#D7C29E] bg-[#FAF0D7] p-3.5 text-center">
             <div className="text-xs font-extrabold text-[#6E3D1B] tabular-nums">
-              Saved Progress: {completedHoles}/16 Holes · ★ {earnedStars} Stars
+              Saved Progress: {completedHoles}/{LEVELS.length} Holes · ★ {earnedStars} Stars
             </div>
 
             {!confirmingReset ? (
@@ -593,7 +593,7 @@ export function VictoryModal({
       ? 'Tour Champion'
       : diff <= 5
       ? 'Pro Club Finisher'
-      : '16-Hole Challenger';
+      : `${LEVELS.length}-Hole Challenger`;
   const overallStars: 1 | 2 | 3 = diff <= 0 ? 3 : diff <= 6 ? 2 : 1;
 
   const firstHalf = LEVELS.slice(0, Math.ceil(LEVELS.length / 2));
@@ -628,30 +628,31 @@ export function VictoryModal({
       style={{ backgroundColor: 'rgba(11, 52, 64, 0.72)' }}
     >
       <div className="animate-modal-pop w-full max-w-2xl max-h-[93dvh] overflow-y-auto touch-pan-y overscroll-contain bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-4 sm:p-5 shadow-[0_10px_0_#522810] text-center">
-        {/* Frost Falls Champion Trophy Header */}
+        {/* Tour & Candy Factory Champion Trophy Header */}
         <div className="flex items-center justify-center gap-3">
           <div className="relative shrink-0">
             <svg viewBox="0 0 48 48" className="w-11 h-11 sm:w-12 sm:h-12" aria-hidden="true">
               <path
                 d="M12 10 H36 V20 C36 27 30.5 32 24 32 C17.5 32 12 27 12 20 Z"
-                fill="#38BDF8"
-                stroke="#0C4A6E"
+                fill="#EC4899"
+                stroke="#831843"
                 strokeWidth="3"
                 strokeLinejoin="round"
               />
               <path
                 d="M12 13 H6 C6 20 9 23 13 23 M36 13 H42 C42 20 39 23 35 23"
                 fill="none"
-                stroke="#0C4A6E"
+                stroke="#831843"
                 strokeWidth="3"
                 strokeLinecap="round"
               />
-              {/* Snowflake star emblem on cup */}
+              {/* Sweet star emblem on cup */}
               <path
-                d="M24 14 V26 M18 20 H30 M19.8 15.8 L28.2 24.2 M28.2 15.8 L19.8 24.2"
-                stroke="#FFFFFF"
-                strokeWidth="2.2"
-                strokeLinecap="round"
+                d="M24 14 L26 19 L31 19.5 L27.2 22.8 L28.4 27.5 L24 24.8 L19.6 27.5 L20.8 22.8 L17 19.5 L22 19 Z"
+                fill="#FDE047"
+                stroke="#831843"
+                strokeWidth="1.5"
+                strokeLinejoin="round"
               />
               <rect x="20.5" y="32" width="7" height="7" fill="#FACC15" stroke="#522810" strokeWidth="2.5" />
               <rect x="14" y="38" width="20" height="5" rx="2" fill="#BA6B32" stroke="#522810" strokeWidth="2.5" />
@@ -659,16 +660,16 @@ export function VictoryModal({
             <SparkleAccent className="animate-sparkle w-4 h-4 absolute -top-1.5 -right-1.5" color="#FACC15" />
           </div>
           <div className="text-left">
-            <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#0369A1]">
-              Frost Falls Cleared · {performanceLabel}
+            <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#BE185D]">
+              Candy Factory Cleared · {performanceLabel}
             </div>
             <h2
               id="victory-title"
               className="mt-0.5 font-display text-lg sm:text-2xl font-bold text-[#3B1D0E] leading-tight"
             >
               {isFullRun
-                ? `FROST FALLS CHAMPION — ALL ${LEVELS.length} HOLES CLEARED!`
-                : 'FROST FALLS WORLD CLEARED!'}
+                ? `TOUR CHAMPION — ALL ${LEVELS.length} HOLES CLEARED!`
+                : 'SWEET VICTORY — COURSE CLEARED!'}
             </h2>
           </div>
         </div>
@@ -739,9 +740,19 @@ export function VictoryModal({
                         : hDiff === 0
                         ? 'text-[#3B1D0E]'
                         : 'text-[#C2410C]';
+                    const isCandyHole = lvl.theme === 'candy';
                     const isFrostHole = lvl.theme === 'frost';
                     return (
-                      <tr key={lvl.id} className={isFrostHole ? 'bg-[#F0F9FF]/70' : undefined}>
+                      <tr
+                        key={lvl.id}
+                        className={
+                          isCandyHole
+                            ? 'bg-[#FDF2F8]/80'
+                            : isFrostHole
+                            ? 'bg-[#F0F9FF]/70'
+                            : undefined
+                        }
+                      >
                         <td className="py-0.5 px-2.5 font-bold text-[#3B1D0E] truncate max-w-[175px]">
                           {lvl.id}. {lvl.name}
                         </td>

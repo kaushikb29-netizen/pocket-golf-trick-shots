@@ -88,10 +88,10 @@ export const COURSE_WORLDS: CourseWorld[] = [
     id: 'candy-factory',
     worldNumber: 5,
     name: 'Candy Factory',
-    tagline: 'Peppermint bumpers, caramel bends & sugar chutes',
+    tagline: 'Peppermint bumpers, chocolate belts & candy-cane chutes',
     theme: 'candy',
     holeIds: [17, 18, 19, 20],
-    comingSoon: true,
+    comingSoon: false,
     accentHex: '#EC4899',
     surfaceHex: '#FDF2F8',
     borderHex: '#9D174D',
@@ -347,7 +347,6 @@ export function getWorldStats(
   world: CourseWorld
 ): WorldProgressStats {
   const totalHoles = world.holeIds.length;
-  const maxStars = totalHoles * 3;
 
   if (world.comingSoon) {
     return {
@@ -355,7 +354,7 @@ export function getWorldStats(
       totalHoles,
       implementedHoles: 0,
       earnedStars: 0,
-      maxStars,
+      maxStars: totalHoles * 3,
       totalPar: null,
       bestWorldStrokes: null,
       status: 'coming_soon',
@@ -390,6 +389,8 @@ export function getWorldStats(
       : completedCount >= implementedHoles
       ? 'completed'
       : 'in_progress';
+
+  const maxStars = implementedHoles > 0 ? implementedHoles * 3 : totalHoles * 3;
 
   return {
     completedCount,
