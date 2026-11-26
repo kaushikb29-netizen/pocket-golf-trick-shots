@@ -154,8 +154,8 @@ test('predictAimPath generates trajectory points and scoring labels match golf r
   assert.equal(formatParDelta(10, 8), '+2 Over Par');
 });
 
-test('course sequence contains 18 holes with expected names and pars', () => {
-  assert.equal(LEVELS.length, 18);
+test('course sequence contains 20 holes with expected names and pars', () => {
+  assert.equal(LEVELS.length, 20);
   assert.deepEqual(
     LEVELS.map((l) => [l.id, l.name, l.par]),
     [
@@ -177,10 +177,12 @@ test('course sequence contains 18 holes with expected names and pars', () => {
       [16, 'Blizzard Finale', 5],
       [17, 'Sugar Rush', 3],
       [18, 'Chocolate Conveyor', 4],
+      [19, 'Jellybean Junction', 4],
+      [20, 'Candy Chaos', 5],
     ]
   );
   const totalPar = LEVELS.reduce((sum, l) => sum + l.par, 0);
-  assert.equal(totalPar, 66);
+  assert.equal(totalPar, 75);
 });
 
 test('Hole 4 Zigzag Garden angled corner bumper deflects vertical shot cleanly into corridor', () => {
@@ -821,4 +823,141 @@ test('Hole 18 Chocolate Conveyor belts steer ball in indicated direction, never 
     }
   }
   assert.equal(sank, true, 'straight putt down the narrow chocolate putting area should sink into Hole 18 cup');
+});
+
+test('Hole 19 Jellybean Junction sticky jelly slows ball with splash, never traps it, and offers two navigable routes', () => {
+  const level19 = LEVELS[18];
+  assert.equal(level19.theme, 'candy');
+  assert.equal(level19.par, 4);
+  const jellyZones = (level19.hazards ?? []).filter((h) => h.kind === 'jelly');
+  assert.equal(jellyZones.length, 2, 'Hole 19 must feature sticky jelly zones');
+
+  // Compare identical speed shot rolling into sticky jelly vs normal mint turf
+  const simJelly = createInitialSimState(level19);
+  simJelly.ball.x = 392;
+  simJelly.ball.y = 168; // rolls straight across upper sticky jelly (466, 168)
+  launchBall(simJelly.ball, 420, 0);
+
+  const simNormal = createInitialSimState(level19);
+  simNormal.ball.x = 392;
+  simNormal.ball.y = 322; // clear mint lane below central jellybean
+  launchBall(simNormal.ball, 420, 0);
+
+  let jellySplashes = 0;
+  for (let i = 0; i < 200; i++) {
+    const evs = stepSimulation(simJelly, level19, 1 / 60);
+    if (evs.some((e) => e.type === 'jelly_splash')) {
+      jellySplashes++;
+    }
+    stepSimulation(simNormal, level19, 1 / 60);
+  }
+  const jellyTravel = simJelly.ball.x - 392;
+  const normalTravel = simNormal.ball.x - 392;
+  assert.ok(jellySplashes >= 1, 'rolling through sticky jelly should emit jelly_splash feedback');
+  assert.ok(
+    jellyTravel < normalTravel * 0.72,
+    `sticky jelly should slow ball noticeably vs normal turf (jelly=${jellyTravel.toFixed(1)}, normal=${normalTravel.toFixed(1)})`
+  );
+  assert.equal(simJelly.ball.isMoving, false, 'ball must settle cleanly in sticky jelly');
+
+  // Verify ball resting dead-center inside sticky jelly can always launch cleanly out (never permanently stuck!)
+  const simEscape = createInitialSimState(level19);
+  simEscape.ball.x = 466;
+  simEscape.ball.y = 168;
+  simEscape.ball.isMoving = false;
+  launchBall(simEscape.ball, 650, 240);
+  for (let i = 0; i < 150; i++) {
+    stepSimulation(simEscape, level19, 1 / 60);
+  }
+  assert.equal(simEscape.ball.isMoving, false, 'escaped ball must settle cleanly');
+  assert.ok(
+    simEscape.ball.x > 545,
+    `ball resting in sticky jelly must always escape cleanly with a firm shot (x=${simEscape.ball.x.toFixed(1)}, y=${simEscape.ball.y.toFixed(1)})`
+  );
+
+  // Verify approach shot into Hole 19 cup (742, 270) sinks cleanly
+  const simPutt = createInitialSimState(level19);
+  simPutt.ball.x = 660;
+  simPutt.ball.y = 270;
+  launchBall(simPutt.ball, 210, 0);
+  let sank = false;
+  for (let i = 0; i < 180; i++) {
+    const evs = stepSimulation(simPutt, level19, 1 / 60);
+    if (evs.some((e) => e.type === 'hole_sink')) {
+      sank = true;
+      break;
+    }
+  }
+  assert.equal(sank, true, 'approach shot should sink cleanly into Hole 19 cup');
+});
+
+test('Hole 20 Candy Chaos integrates 2 conveyors, 3 candy bumpers, sticky jelly, rotating cane, and solvable final chute', () => {
+  const level20 = LEVELS[19];
+  assert.equal(level20.theme, 'candy');
+  assert.equal(level20.par, 5);
+  assert.equal(level20.conveyors?.length, 2, 'Hole 20 must feature two conveyor belts');
+  assert.equal(level20.bumpers.length, 3, 'Hole 20 must feature three circular candy bumpers');
+  assert.equal(level20.rotators.length, 1, 'Hole 20 must feature one slowly rotating candy-cane obstacle');
+  const jellyZones = (level20.hazards ?? []).filter((h) => h.kind === 'jelly');
+  assert.equal(jellyZones.length, 2, 'Hole 20 must feature sticky jelly zones');
+
+  // Verify both conveyor belts accelerate resting balls rightward and exit onto open floor without trapping
+  for (const belt of level20.conveyors!) {
+    const simBelt = createInitialSimState(level20);
+    simBelt.ball.x = belt.x - 30;
+    simBelt.ball.y = belt.y;
+    simBelt.ball.isMoving = false;
+    for (let i = 0; i < 240; i++) {
+      stepSimulation(simBelt, level20, 1 / 60);
+    }
+    assert.equal(simBelt.ball.isMoving, false, `${belt.id} must settle cleanly without trapping ball`);
+    assert.ok(
+      simBelt.ball.x > belt.x + belt.w / 2,
+      `${belt.id} must carry ball cleanly off right exit (x=${simBelt.ball.x.toFixed(1)})`
+    );
+  }
+
+  // Verify rotating candy-cane spins slowly and cleanly
+  const simRot = createInitialSimState(level20);
+  const startAngle = simRot.rotatorAngles[0];
+  for (let i = 0; i < 60; i++) {
+    stepSimulation(simRot, level20, 1 / 60);
+  }
+  assert.ok(
+    Math.abs(simRot.rotatorAngles[0] - startAngle) > 0.5 &&
+      Math.abs(simRot.rotatorAngles[0] - startAngle) < 1.0,
+    'Hole 20 candy-cane obstacle should rotate at a smooth readable pace'
+  );
+
+  // Verify candy bumper collision bounces ball cleanly
+  const simBumper = createInitialSimState(level20);
+  const b1 = level20.bumpers[0];
+  const dx = b1.x - simBumper.ball.x;
+  const dy = b1.y - simBumper.ball.y;
+  const len = Math.hypot(dx, dy);
+  launchBall(simBumper.ball, (dx / len) * 520, (dy / len) * 520);
+  let hitCandy = false;
+  for (let i = 0; i < 60; i++) {
+    const evs = stepSimulation(simBumper, level20, 1 / 60);
+    if (evs.some((e) => e.type === 'bumper')) {
+      hitCandy = true;
+      break;
+    }
+  }
+  assert.equal(hitCandy, true, 'Hole 20 candy bumpers must rebound shots cleanly');
+
+  // Verify challenging final putting chute sinks cleanly into Hole 20 cup (768, 268)
+  const simFinal = createInitialSimState(level20);
+  simFinal.ball.x = 640;
+  simFinal.ball.y = 268;
+  launchBall(simFinal.ball, 240, 0);
+  let sank = false;
+  for (let i = 0; i < 200; i++) {
+    const evs = stepSimulation(simFinal, level20, 1 / 60);
+    if (evs.some((e) => e.type === 'hole_sink')) {
+      sank = true;
+      break;
+    }
+  }
+  assert.equal(sank, true, 'straight precision putt through final gate should sink into Hole 20 cup');
 });

@@ -78,7 +78,7 @@ export interface DecorProp {
 
 export interface SurfaceZone {
   id: string;
-  kind: 'sand' | 'water' | 'ice';
+  kind: 'sand' | 'water' | 'ice' | 'jelly';
   shape: 'rect' | 'ellipse';
   /** Center X */
   x: number;
@@ -172,7 +172,7 @@ export interface LevelDefinition {
   subtitle: string;
   par: number;
   theme?: LevelTheme;
-  /** Optional surface palette variant (e.g. 'chocolate' for Hole 18) */
+  /** Optional surface palette variant (e.g. 'chocolate' for Hole 18 & 20) */
   turfStyle?: 'default' | 'chocolate';
   worldWidth: number;
   worldHeight: number;
@@ -195,7 +195,7 @@ export interface LevelDefinition {
   forceZones?: ForceZone[];
   /** Moving conveyor belts that gently push the ball in an indicated direction */
   conveyors?: ConveyorBelt[];
-  /** Optional sand traps & water hazards */
+  /** Optional sand traps, water hazards, slippery ice & sticky jelly surfaces */
   hazards?: SurfaceZone[];
   /** Surrounding courtyard decorations */
   decor: DecorProp[];
@@ -224,7 +224,16 @@ export interface BallState {
 }
 
 export interface CollisionEvent {
-  type: 'wall' | 'bumper' | 'rotator' | 'gate' | 'portal' | 'hole_lip' | 'hole_sink' | 'water_hazard';
+  type:
+    | 'wall'
+    | 'bumper'
+    | 'rotator'
+    | 'gate'
+    | 'portal'
+    | 'hole_lip'
+    | 'hole_sink'
+    | 'water_hazard'
+    | 'jelly_splash';
   x: number;
   y: number;
   nx: number;
@@ -240,6 +249,7 @@ export interface SimState {
   rotatorAngles: number[];
   elapsedTime: number;
   bumperPulse: Record<string, number>;
+  jellySplashCooldown?: number;
 }
 
 export type GamePhase =

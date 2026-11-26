@@ -200,23 +200,73 @@ export class ParticlePool {
     }
   }
 
-  public emitBumperBurst(x: number, y: number, color: string): void {
+  public emitBumperBurst(x: number, y: number, color: string, isCandy = false): void {
     // Crisp double expanding impact ring
-    this.spawn(x, y, 0, 0, 12, 0.34, '#FFE066', 'ring', 0, 145);
-    this.spawn(x, y, 0, 0, 6, 0.24, '#FFFFFF', 'ring', 0, 105);
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2 + Math.random() * 0.25;
-      const spd = 95 + Math.random() * 125;
+    this.spawn(x, y, 0, 0, 12, 0.34, isCandy ? '#F9A8D4' : '#FFE066', 'ring', 0, 155);
+    this.spawn(x, y, 0, 0, 6, 0.24, '#FFFFFF', 'ring', 0, 110);
+    const candyAccents = ['#F472B6', '#FDE047', '#34D399', '#38BDF8', '#FFFFFF'];
+    const count = isCandy ? 16 : 12;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + Math.random() * 0.25;
+      const spd = 95 + Math.random() * (isCandy ? 145 : 125);
+      const useSparkle = isCandy && i % 3 === 0;
       this.spawn(
         x,
         y,
         Math.cos(a) * spd,
         Math.sin(a) * spd,
-        3.2 + Math.random() * 3,
-        0.28 + Math.random() * 0.2,
-        i % 2 === 0 ? color : '#FFF3B0',
+        useSparkle ? 4.8 + Math.random() * 2.8 : 3.2 + Math.random() * 3,
+        0.28 + Math.random() * 0.22,
+        isCandy ? candyAccents[i % candyAccents.length] : i % 2 === 0 ? color : '#FFF3B0',
+        useSparkle ? 'sparkle' : 'circle',
+        3.5
+      );
+    }
+  }
+
+  public emitJellySplash(x: number, y: number, impactSpeed = 180): void {
+    const intensity = Math.min(1, Math.max(0.35, impactSpeed / 420));
+    this.spawn(x, y, 0, 0, 6, 0.28, '#F9A8D4', 'ring', 0, 65 + intensity * 45);
+    const droplets = 6 + Math.round(intensity * 5);
+    const jellyColors = ['#EC4899', '#F472B6', '#FBCFE8', '#D946EF'];
+    for (let i = 0; i < droplets; i++) {
+      const a = (i / droplets) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+      const spd = (42 + Math.random() * 78) * intensity;
+      this.spawn(
+        x,
+        y,
+        Math.cos(a) * spd,
+        Math.sin(a) * spd,
+        2.6 + Math.random() * 2.8,
+        0.24 + Math.random() * 0.18,
+        jellyColors[i % jellyColors.length],
         'circle',
-        3.6
+        4.8
+      );
+    }
+  }
+
+  public emitCandyFinaleCelebration(x: number, y: number): void {
+    // Multi-ring festive candy shockwaves
+    this.spawn(x, y, 0, 0, 12, 0.55, '#EC4899', 'ring', 0, 130);
+    this.spawn(x, y, 0, 0, 16, 0.68, '#FACC15', 'ring', 0, 185);
+    this.spawn(x, y, 0, 0, 20, 0.78, '#34D399', 'ring', 0, 235);
+    const candyFinalePalette = ['#EC4899', '#34D399', '#FACC15', '#38BDF8', '#F97316', '#FFFFFF'];
+    for (let i = 0; i < 64; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const spd = 95 + Math.random() * 290;
+      const color = candyFinalePalette[i % candyFinalePalette.length];
+      const isSparkle = i % 3 === 0;
+      this.spawn(
+        x,
+        y,
+        Math.cos(a) * spd,
+        Math.sin(a) * spd - 42,
+        isSparkle ? 6 + Math.random() * 4.5 : 5 + Math.random() * 4.5,
+        0.78 + Math.random() * 0.62,
+        color,
+        isSparkle ? 'sparkle' : 'confetti',
+        1.95
       );
     }
   }

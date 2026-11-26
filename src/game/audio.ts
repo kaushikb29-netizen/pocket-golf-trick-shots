@@ -498,6 +498,27 @@ class GolfAudio {
     osc.start(now);
     osc.stop(now + 0.25);
   }
+  public playJellySplash(impactSpeed = 180): void {
+    const ctx = this.ensureContext();
+    if (!ctx) return;
+
+    const now = ctx.currentTime;
+    const intensity = Math.min(1, Math.max(0.3, impactSpeed / 450));
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220 + intensity * 120, now);
+    osc.frequency.exponentialRampToValueAtTime(390 + intensity * 140, now + 0.055);
+    osc.frequency.exponentialRampToValueAtTime(165, now + 0.12);
+
+    gain.gain.setValueAtTime(0.05 + intensity * 0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.14);
+  }
 }
 
 export const golfAudio = new GolfAudio();

@@ -353,8 +353,16 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
             } else if (ev.type === 'bumper') {
               golfAudio.playBumperBounce(ev.impactSpeed);
               const bObj = level.bumpers.find((b) => b.id === ev.id);
-              particlesRef.current.emitBumperBurst(ev.x, ev.y, bObj?.color ?? '#FF6B4A');
+              particlesRef.current.emitBumperBurst(
+                ev.x,
+                ev.y,
+                bObj?.color ?? '#FF6B4A',
+                bObj?.style === 'candy'
+              );
               traumaRef.current = Math.min(1, traumaRef.current + 0.36);
+            } else if (ev.type === 'jelly_splash') {
+              golfAudio.playJellySplash(ev.impactSpeed);
+              particlesRef.current.emitJellySplash(ev.x, ev.y, ev.impactSpeed);
             } else if (ev.type === 'rotator') {
               golfAudio.playWoodBounce(ev.impactSpeed * 1.15);
               particlesRef.current.emitWallSpark(
@@ -404,14 +412,19 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
               const tier = resolveCelebrationTier(currentStrokes, level.par);
               const scoreInfo = getScoreLabel(currentStrokes, level.par);
               golfAudio.playCupSink(tier);
-              const particleTier = tier === 'last_chance' ? 'eagle' : tier;
-              particlesRef.current.emitHoleCelebration(ev.x, ev.y, particleTier);
+              if (level.id === 20) {
+                particlesRef.current.emitCandyFinaleCelebration(ev.x, ev.y);
+              } else {
+                const particleTier = tier === 'last_chance' ? 'eagle' : tier;
+                particlesRef.current.emitHoleCelebration(ev.x, ev.y, particleTier);
+              }
               traumaRef.current = Math.min(
                 1,
                 traumaRef.current +
-                  (tier === 'hole_in_one' || tier === 'last_chance' ? 0.42 : 0.26)
+                  (level.id === 20 || tier === 'hole_in_one' || tier === 'last_chance' ? 0.42 : 0.26)
               );
               if (
+                level.id === 20 ||
                 tier === 'hole_in_one' ||
                 tier === 'eagle' ||
                 tier === 'birdie' ||
@@ -420,12 +433,13 @@ export const GolfCanvas = forwardRef<GolfCanvasHandle, GolfCanvasProps>(
                 splashCalloutRef.current = {
                   x: ev.x,
                   y: ev.y - 6,
-                  life: 1.35,
-                  maxLife: 1.35,
-                  text: scoreInfo.title,
-                  fillColor: tier === 'birdie' ? '#A7F3D0' : '#FDE047',
-                  strokeColor: '#3B1D0E',
-                  scale: tier === 'hole_in_one' || tier === 'last_chance' ? 1.32 : 1.18,
+                  life: 1.45,
+                  maxLife: 1.45,
+                  text: level.id === 20 ? 'SWEET FINALE!' : scoreInfo.title,
+                  fillColor:
+                    level.id === 20 ? '#F9A8D4' : tier === 'birdie' ? '#A7F3D0' : '#FDE047',
+                  strokeColor: level.id === 20 ? '#831843' : '#3B1D0E',
+                  scale: level.id === 20 || tier === 'hole_in_one' || tier === 'last_chance' ? 1.32 : 1.18,
                 };
               }
               syncCanvasDataAttributes();

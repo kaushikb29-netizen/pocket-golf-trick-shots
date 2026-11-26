@@ -46,6 +46,7 @@ export function createInitialSimState(level: LevelDefinition): SimState {
     rotatorAngles: level.rotators.map((r) => r.initialAngle),
     elapsedTime: 0,
     bumperPulse: {},
+    jellySplashCooldown: 0,
   };
 }
 
@@ -86,7 +87,7 @@ export function getActiveHazard(
   for (const h of hazards) {
     if (pointInSurfaceZone(x, y, h)) {
       if (h.kind === 'water') return h;
-      if (!matched || h.kind === 'sand') {
+      if (!matched || h.kind === 'jelly' || h.kind === 'sand') {
         matched = h;
       }
     }
@@ -588,10 +589,11 @@ export function stepSimulation(
   const events: CollisionEvent[] = [];
   sim.elapsedTime += dt;
 
-  // Decay bumper pulse animations
+  // Decay bumper pulse animations & jelly splash cooldown
   for (const key of Object.keys(sim.bumperPulse)) {
     sim.bumperPulse[key] = Math.max(0, sim.bumperPulse[key] - dt * 4.5);
   }
+  sim.jellySplashCooldown = Math.max(0, (sim.jellySplashCooldown ?? 0) - dt);
 
   const ball = sim.ball;
 
@@ -667,11 +669,25 @@ export function stepSimulation(
         break;
       }
 
-      // Natural rolling friction (sand slows strongly, ice reduces friction smoothly, normal turf restores standard grip)
+      // Natural rolling friction: sticky jelly & sand slow strongly (never trapping), ice glides, normal turf grips smoothly
       const inSand = hazard?.kind === 'sand';
+      const inJelly = hazard?.kind === 'jelly';
       const inIce = hazard?.kind === 'ice';
-      const expRate = inSand ? 3.5 : inIce ? 0.24 : 0.92;
-      const linearRate = inSand ? 145 : inIce ? 8 : 32;
+      if (inJelly && speed > 105 && (sim.jellySplashCooldown ?? 0) <= 0) {
+        sim.jellySplashCooldown = 0.22;
+        events.push({
+          type: 'jelly_splash',
+          x: ball.x,
+          y: ball.y,
+          nx: 0,
+          ny: -1,
+          impactSpeed: speed,
+          id: hazard.id,
+        });
+      }
+
+      const expRate = inJelly ? 4.1 : inSand ? 3.5 : inIce ? 0.24 : 0.92;
+      const linearRate = inJelly ? 158 : inSand ? 145 : inIce ? 8 : 32;
 
       const expDrag = Math.exp(-expRate * subDt);
       ball.vx *= expDrag;
@@ -893,7 +909,13 @@ export function predictAimPath(
       break;
     }
     const dragRate =
-      hazard?.kind === 'sand' ? 3.5 : hazard?.kind === 'ice' ? 0.24 : 0.92;
+      hazard?.kind === 'jelly'
+        ? 4.1
+        : hazard?.kind === 'sand'
+        ? 3.5
+        : hazard?.kind === 'ice'
+        ? 0.24
+        : 0.92;
     ghost.vx *= Math.exp(-dragRate * stepDt);
     ghost.vy *= Math.exp(-dragRate * stepDt);
 

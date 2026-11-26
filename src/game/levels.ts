@@ -7,6 +7,44 @@ export const HOLE_RADIUS = 20;
 
 const BORDER_T = 22;
 
+/**
+ * Generate a smooth curved barrier built from tightly overlapping angled OBB segments.
+ * Preserves rock-solid collision physics with zero corner leaks while rendering as a curved rail.
+ */
+function makeArcBarrier(
+  cx: number,
+  cy: number,
+  radius: number,
+  startAngle: number,
+  endAngle: number,
+  segments: number,
+  thickness: number,
+  prefix: string,
+  kind: RectWall['kind'] = 'candy-cane'
+): RectWall[] {
+  const walls: RectWall[] = [];
+  const step = (endAngle - startAngle) / segments;
+  for (let i = 0; i < segments; i++) {
+    const a0 = startAngle + i * step;
+    const a1 = a0 + step;
+    const x0 = cx + Math.cos(a0) * radius;
+    const y0 = cy + Math.sin(a0) * radius;
+    const x1 = cx + Math.cos(a1) * radius;
+    const y1 = cy + Math.sin(a1) * radius;
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    walls.push({
+      id: `${prefix}-arc-${i}`,
+      x: (x0 + x1) / 2,
+      y: (y0 + y1) / 2,
+      w: len + thickness * 0.45,
+      h: thickness,
+      angle: Math.atan2(y1 - y0, x1 - x0),
+      kind,
+    });
+  }
+  return walls;
+}
+
 function makeBoxBorders(
   left: number,
   top: number,
@@ -2444,6 +2482,358 @@ export const LEVELS: LevelDefinition[] = [
       { kind: 'jellybean', x: 438, y: 56, scale: 0.88 },
       { kind: 'gumdrop', x: 268, y: 484, scale: 0.88, color: '#FACC15' },
       { kind: 'jellybean', x: 472, y: 484, scale: 0.88 },
+    ],
+  },
+
+  // ===========================================================================
+  // LEVEL 19: Jellybean Junction (Candy Factory, Par 4)
+  // ===========================================================================
+  {
+    id: 19,
+    name: 'Jellybean Junction',
+    subtitle: 'Pick your route around sticky jelly pools, giant jellybeans & curved candy rails',
+    par: 4,
+    theme: 'candy',
+    turfStyle: 'default',
+    worldWidth: WORLD_WIDTH,
+    worldHeight: WORLD_HEIGHT,
+    tee: { x: 158, y: 270 },
+    hole: { x: 742, y: 270 },
+    holeRadius: HOLE_RADIUS,
+    turfPolygons: [
+      {
+        points: [
+          { x: 96, y: 170 },
+          { x: 162, y: 102 },
+          { x: 738, y: 102 },
+          { x: 804, y: 170 },
+          { x: 804, y: 370 },
+          { x: 738, y: 438 },
+          { x: 162, y: 438 },
+          { x: 96, y: 370 },
+        ],
+      },
+    ],
+    walls: [
+      ...makePolygonBorders(
+        [
+          { x: 96, y: 170 },
+          { x: 162, y: 102 },
+          { x: 738, y: 102 },
+          { x: 804, y: 170 },
+          { x: 804, y: 370 },
+          { x: 738, y: 438 },
+          { x: 162, y: 438 },
+          { x: 96, y: 370 },
+        ],
+        'l19',
+        'candy-cane'
+      ),
+      // Sweeping curved candy-cane splitter nose dividing upper & lower routes
+      ...makeArcBarrier(386, 270, 56, Math.PI * 0.68, Math.PI * 1.32, 4, 18, 'l19-split', 'candy-cane'),
+      // Sweeping curved candy-cane outer bank guiding upper-route shots smoothly toward the cup
+      ...makeArcBarrier(684, 206, 90, -Math.PI * 0.46, -Math.PI * 0.04, 4, 18, 'l19-curve-tr', 'candy-cane'),
+      // Sweeping curved candy-cane outer bank framing the lower-left bend
+      ...makeArcBarrier(216, 334, 90, Math.PI * 0.54, Math.PI * 0.96, 4, 18, 'l19-curve-bl', 'candy-cane'),
+      // Giant central junction jellybean island separating the two routes
+      {
+        id: 'l19-jb-core',
+        x: 462,
+        y: 270,
+        w: 158,
+        h: 42,
+        angle: 0,
+        kind: 'jellybean',
+      },
+      // Giant angled jellybean obstacle guarding the upper-route exit
+      {
+        id: 'l19-jb-upper-exit',
+        x: 598,
+        y: 166,
+        w: 28,
+        h: 64,
+        angle: -0.22,
+        kind: 'jellybean',
+      },
+      // Giant angled jellybean obstacle in the lower technical route
+      {
+        id: 'l19-jb-lower-1',
+        x: 344,
+        y: 382,
+        w: 72,
+        h: 28,
+        angle: -0.28,
+        kind: 'jellybean',
+      },
+      // Giant vertical jellybean obstacle guarding the lower-right approach to the green
+      {
+        id: 'l19-jb-lower-2',
+        x: 618,
+        y: 350,
+        w: 28,
+        h: 68,
+        angle: 0.16,
+        kind: 'jellybean',
+      },
+    ],
+    bumpers: [],
+    rotators: [],
+    hazards: [
+      // Sticky raspberry jelly zone along the shorter upper route
+      {
+        id: 'l19-jelly-upper',
+        kind: 'jelly',
+        shape: 'ellipse',
+        x: 466,
+        y: 168,
+        w: 148,
+        h: 76,
+      },
+      // Sticky grape jelly puddle hugging the outer lower bend
+      {
+        id: 'l19-jelly-lower',
+        kind: 'jelly',
+        shape: 'ellipse',
+        x: 522,
+        y: 392,
+        w: 122,
+        h: 64,
+      },
+    ],
+    decor: [
+      { kind: 'lollipop', x: 90, y: 98, scale: 1.06, color: '#EC4899' },
+      { kind: 'gumdrop', x: 146, y: 64, scale: 0.88, color: '#FACC15' },
+      { kind: 'jellybean', x: 316, y: 56, scale: 0.94 },
+      { kind: 'gumdrop', x: 486, y: 58, scale: 0.9, color: '#38BDF8' },
+      { kind: 'lollipop', x: 814, y: 98, scale: 1.04, color: '#14B8A6' },
+      { kind: 'gumdrop', x: 752, y: 64, scale: 0.88, color: '#F97316' },
+      { kind: 'lollipop', x: 92, y: 442, scale: 1.02, color: '#FACC15' },
+      { kind: 'jellybean', x: 282, y: 482, scale: 0.94 },
+      { kind: 'gumdrop', x: 462, y: 482, scale: 0.92, color: '#EC4899' },
+      { kind: 'jellybean', x: 628, y: 482, scale: 0.92 },
+      { kind: 'lollipop', x: 812, y: 442, scale: 1.05, color: '#38BDF8' },
+    ],
+  },
+
+  // ===========================================================================
+  // LEVEL 20: Candy Chaos (Candy Factory Finale, Par 5)
+  // ===========================================================================
+  {
+    id: 20,
+    name: 'Candy Chaos',
+    subtitle: 'Master conveyors, candy bumpers, sticky jelly & the rotating cane to win Candy Factory',
+    par: 5,
+    theme: 'candy',
+    turfStyle: 'chocolate',
+    worldWidth: WORLD_WIDTH,
+    worldHeight: WORLD_HEIGHT,
+    tee: { x: 144, y: 270 },
+    hole: { x: 768, y: 268 },
+    holeRadius: HOLE_RADIUS,
+    turfPolygons: [
+      {
+        points: [
+          { x: 86, y: 100 },
+          { x: 612, y: 100 },
+          { x: 648, y: 218 },
+          { x: 816, y: 218 },
+          { x: 816, y: 318 },
+          { x: 648, y: 318 },
+          { x: 612, y: 440 },
+          { x: 86, y: 440 },
+        ],
+      },
+    ],
+    walls: [
+      ...makePolygonBorders(
+        [
+          { x: 86, y: 100 },
+          { x: 612, y: 100 },
+          { x: 648, y: 218 },
+          { x: 816, y: 218 },
+          { x: 816, y: 318 },
+          { x: 648, y: 318 },
+          { x: 612, y: 440 },
+          { x: 86, y: 440 },
+        ],
+        'l20',
+        'candy-cane'
+      ),
+      // Angled candy-cane bank rails in left corners
+      {
+        id: 'l20-angle-tl',
+        x: 114,
+        y: 128,
+        w: 62,
+        h: 18,
+        angle: -Math.PI / 4,
+        kind: 'candy-cane',
+      },
+      {
+        id: 'l20-angle-bl',
+        x: 114,
+        y: 412,
+        w: 62,
+        h: 18,
+        angle: Math.PI / 4,
+        kind: 'candy-cane',
+      },
+      // Angled jellybean bank rail steering upper conveyor exits toward the final chute
+      {
+        id: 'l20-angle-tr',
+        x: 588,
+        y: 136,
+        w: 64,
+        h: 20,
+        angle: Math.PI / 4,
+        kind: 'jellybean',
+      },
+      // Narrow precision entrance cheeks framing the challenging final putting section (62px clean gate)
+      {
+        id: 'l20-chute-top',
+        x: 676,
+        y: 226,
+        w: 34,
+        h: 14,
+        angle: 0.24,
+        kind: 'candy-cane',
+      },
+      {
+        id: 'l20-chute-bot',
+        x: 676,
+        y: 310,
+        w: 34,
+        h: 14,
+        angle: -0.24,
+        kind: 'candy-cane',
+      },
+      // Back corner angled reflectors behind the cup
+      {
+        id: 'l20-back-tr',
+        x: 796,
+        y: 236,
+        w: 36,
+        h: 14,
+        angle: Math.PI / 4,
+        kind: 'candy-cane',
+      },
+      {
+        id: 'l20-back-br',
+        x: 796,
+        y: 300,
+        w: 36,
+        h: 14,
+        angle: -Math.PI / 4,
+        kind: 'candy-cane',
+      },
+    ],
+    bumpers: [
+      {
+        id: 'l20-candy-1',
+        x: 248,
+        y: 184,
+        radius: 24,
+        restitution: 1.18,
+        color: '#EC4899',
+        accentColor: '#FFFDF5',
+        style: 'candy',
+      },
+      {
+        id: 'l20-candy-2',
+        x: 344,
+        y: 274,
+        radius: 25,
+        restitution: 1.18,
+        color: '#FACC15',
+        accentColor: '#FFFDF5',
+        style: 'candy',
+      },
+      {
+        id: 'l20-candy-3',
+        x: 456,
+        y: 368,
+        radius: 24,
+        restitution: 1.18,
+        color: '#14B8A6',
+        accentColor: '#FFFDF5',
+        style: 'candy',
+      },
+    ],
+    rotators: [
+      // Slowly rotating candy-cane obstacle guarding the entrance to the final putting chute
+      {
+        id: 'l20-spinner',
+        cx: 568,
+        cy: 268,
+        length: 112,
+        thickness: 18,
+        blades: 1,
+        initialAngle: 0.45,
+        angularVelocity: 0.68,
+        hubRadius: 15,
+      },
+    ],
+    conveyors: [
+      // Conveyor Belt 1: Lower-left boost belt launching right into mid-course open floor
+      {
+        id: 'l20-belt-1',
+        x: 256,
+        y: 382,
+        w: 144,
+        h: 64,
+        dirX: 1,
+        dirY: 0,
+        strength: 230,
+        beltSpeed: 70,
+        targetSpeed: 165,
+      },
+      // Conveyor Belt 2: Upper-center belt feeding shots toward the angled bank & final chute
+      {
+        id: 'l20-belt-2',
+        x: 432,
+        y: 152,
+        w: 140,
+        h: 62,
+        dirX: 1,
+        dirY: 0,
+        strength: 225,
+        beltSpeed: 68,
+        targetSpeed: 160,
+      },
+    ],
+    hazards: [
+      // Sticky raspberry jelly zone between tee & central bumper
+      {
+        id: 'l20-jelly-1',
+        kind: 'jelly',
+        shape: 'ellipse',
+        x: 254,
+        y: 282,
+        w: 86,
+        h: 54,
+      },
+      // Sticky grape jelly zone catching overshot lower-right approaches
+      {
+        id: 'l20-jelly-2',
+        kind: 'jelly',
+        shape: 'ellipse',
+        x: 566,
+        y: 386,
+        w: 96,
+        h: 54,
+      },
+    ],
+    decor: [
+      { kind: 'lollipop', x: 696, y: 120, scale: 1.08, color: '#EC4899' },
+      { kind: 'lollipop', x: 794, y: 122, scale: 0.96, color: '#FACC15' },
+      { kind: 'gumdrop', x: 744, y: 148, scale: 0.92, color: '#34D399' },
+      { kind: 'lollipop', x: 696, y: 416, scale: 1.04, color: '#38BDF8' },
+      { kind: 'lollipop', x: 794, y: 418, scale: 0.96, color: '#F97316' },
+      { kind: 'jellybean', x: 744, y: 398, scale: 0.94 },
+      { kind: 'gumdrop', x: 244, y: 54, scale: 0.88, color: '#EC4899' },
+      { kind: 'jellybean', x: 432, y: 54, scale: 0.9 },
+      { kind: 'gumdrop', x: 264, y: 486, scale: 0.88, color: '#FACC15' },
+      { kind: 'jellybean', x: 468, y: 486, scale: 0.9 },
     ],
   },
 ];

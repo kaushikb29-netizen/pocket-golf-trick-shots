@@ -18,6 +18,7 @@ import { getMaxStrokes } from './game/physics';
 import {
   COURSE_WORLDS,
   getOverallProgressStats,
+  getWorldStats,
   loadProgressFromStorage,
   ProgressStore,
   recordFullCourseBest,
@@ -176,6 +177,12 @@ export default function App() {
     () => getOverallProgressStats(progress),
     [progress]
   );
+  const candyWorldStats = useMemo(() => {
+    const candyWorld = COURSE_WORLDS.find((w) => w.id === 'candy-factory');
+    return candyWorld
+      ? getWorldStats(progress, candyWorld)
+      : { earnedStars: 0, maxStars: 12 };
+  }, [progress]);
 
   const currentLevel = LEVELS[levelIndex] ?? LEVELS[0];
   const currentMaxStrokes = getMaxStrokes(currentLevel.par);
@@ -636,10 +643,14 @@ export default function App() {
         />
       )}
 
-      {/* Final Course Victory Scorecard */}
+      {/* Final Course Victory & Candy Factory Completion Celebration */}
       {phase === 'victory' && (
         <VictoryModal
           holeStrokes={holeStrokes}
+          lastHoleStrokes={strokes}
+          lastHolePar={currentLevel.par}
+          candyWorldEarnedStars={candyWorldStats.earnedStars}
+          candyWorldMaxStars={candyWorldStats.maxStars}
           bestTotal={progress.bestFullCourseTotal}
           githubUser={github.user}
           githubConnecting={github.connecting}

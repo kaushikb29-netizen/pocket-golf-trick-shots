@@ -546,6 +546,10 @@ export function LevelClearModal({
 
 interface VictoryModalProps {
   holeStrokes: number[];
+  lastHoleStrokes: number;
+  lastHolePar: number;
+  candyWorldEarnedStars: number;
+  candyWorldMaxStars: number;
   bestTotal: number | null;
   githubUser: GithubUser | null;
   githubConnecting: boolean;
@@ -560,6 +564,10 @@ interface VictoryModalProps {
 
 export function VictoryModal({
   holeStrokes,
+  lastHoleStrokes,
+  lastHolePar,
+  candyWorldEarnedStars,
+  candyWorldMaxStars,
   bestTotal,
   githubUser,
   githubConnecting,
@@ -584,17 +592,26 @@ export function VictoryModal({
   );
   const isFullRun = playedCount === LEVELS.length;
   const effectivePar = isFullRun ? totalPar : Math.max(1, playedPar);
-  const deltaText = formatParDelta(totalStrokes, effectivePar);
-  const diff = totalStrokes - effectivePar;
+  const effectiveStrokes = totalStrokes > 0 ? totalStrokes : Math.max(1, lastHoleStrokes);
+  const deltaText = formatParDelta(effectiveStrokes, effectivePar);
+  const diff = effectiveStrokes - effectivePar;
+  const hole20Score = Math.max(1, holeStrokes[LEVELS.length - 1] || lastHoleStrokes || lastHolePar);
+  const hole20Info = getScoreLabel(hole20Score, lastHolePar);
   const performanceLabel =
     diff <= -4
       ? 'Legendary Trick-Shot Master'
       : diff <= 0
-      ? 'Tour Champion'
+      ? 'Candy Factory Champion'
       : diff <= 5
       ? 'Pro Club Finisher'
       : `${LEVELS.length}-Hole Challenger`;
-  const overallStars: 1 | 2 | 3 = diff <= 0 ? 3 : diff <= 6 ? 2 : 1;
+  const displayStars: 1 | 2 | 3 = isFullRun
+    ? diff <= 0
+      ? 3
+      : diff <= 6
+      ? 2
+      : 1
+    : hole20Info.stars;
 
   const firstHalf = LEVELS.slice(0, Math.ceil(LEVELS.length / 2));
   const secondHalf = LEVELS.slice(Math.ceil(LEVELS.length / 2));
@@ -625,24 +642,24 @@ export function VictoryModal({
       aria-modal="true"
       aria-labelledby="victory-title"
       className="fixed inset-0 z-30 flex items-center justify-center p-2.5 sm:p-4"
-      style={{ backgroundColor: 'rgba(11, 52, 64, 0.72)' }}
+      style={{ backgroundColor: 'rgba(65, 16, 46, 0.72)' }}
     >
-      <div className="animate-modal-pop w-full max-w-2xl max-h-[93dvh] overflow-y-auto touch-pan-y overscroll-contain bg-[#FFF8E7] border-[4px] border-[#522810] rounded-3xl p-4 sm:p-5 shadow-[0_10px_0_#522810] text-center">
-        {/* Tour & Candy Factory Champion Trophy Header */}
+      <div className="animate-modal-pop w-full max-w-2xl max-h-[93dvh] overflow-y-auto touch-pan-y overscroll-contain bg-[#FFF8F2] border-[4px] border-[#6B1839] rounded-3xl p-4 sm:p-5 shadow-[0_10px_0_#6B1839] text-center">
+        {/* Candy Factory Completed Colorful Celebration Header */}
         <div className="flex items-center justify-center gap-3">
           <div className="relative shrink-0">
-            <svg viewBox="0 0 48 48" className="w-11 h-11 sm:w-12 sm:h-12" aria-hidden="true">
+            <svg viewBox="0 0 48 48" className="w-12 h-12 sm:w-13 sm:h-13" aria-hidden="true">
               <path
                 d="M12 10 H36 V20 C36 27 30.5 32 24 32 C17.5 32 12 27 12 20 Z"
                 fill="#EC4899"
-                stroke="#831843"
+                stroke="#6B1839"
                 strokeWidth="3"
                 strokeLinejoin="round"
               />
               <path
                 d="M12 13 H6 C6 20 9 23 13 23 M36 13 H42 C42 20 39 23 35 23"
                 fill="none"
-                stroke="#831843"
+                stroke="#6B1839"
                 strokeWidth="3"
                 strokeLinecap="round"
               />
@@ -650,7 +667,7 @@ export function VictoryModal({
               <path
                 d="M24 14 L26 19 L31 19.5 L27.2 22.8 L28.4 27.5 L24 24.8 L19.6 27.5 L20.8 22.8 L17 19.5 L22 19 Z"
                 fill="#FDE047"
-                stroke="#831843"
+                stroke="#6B1839"
                 strokeWidth="1.5"
                 strokeLinejoin="round"
               />
@@ -658,61 +675,60 @@ export function VictoryModal({
               <rect x="14" y="38" width="20" height="5" rx="2" fill="#BA6B32" stroke="#522810" strokeWidth="2.5" />
             </svg>
             <SparkleAccent className="animate-sparkle w-4 h-4 absolute -top-1.5 -right-1.5" color="#FACC15" />
+            <SparkleAccent className="animate-sparkle w-3.5 h-3.5 absolute -bottom-1 -left-1.5" color="#34D399" />
           </div>
           <div className="text-left">
             <div className="text-[11px] font-extrabold uppercase tracking-wider text-[#BE185D]">
-              Candy Factory Cleared · {performanceLabel}
+              World 5 · {performanceLabel}
             </div>
             <h2
               id="victory-title"
-              className="mt-0.5 font-display text-lg sm:text-2xl font-bold text-[#3B1D0E] leading-tight"
+              className="mt-0.5 font-display text-lg sm:text-2xl font-bold text-[#6B1839] leading-tight"
             >
-              {isFullRun
-                ? `TOUR CHAMPION — ALL ${LEVELS.length} HOLES CLEARED!`
-                : 'SWEET VICTORY — COURSE CLEARED!'}
+              CANDY FACTORY COMPLETED!
             </h2>
           </div>
         </div>
 
-        {/* Summary Stat Strip: Total Strokes, Total Par, Performance */}
-        <div className="mt-2.5 grid grid-cols-3 gap-2 rounded-2xl border-[3px] border-[#0C4A6E] bg-[#E8F6FF] px-3 py-2">
+        {/* Summary Stat Strip: Hole 20 / Run Strokes, Par, Stars */}
+        <div className="mt-2.5 grid grid-cols-3 gap-2 rounded-2xl border-[3px] border-[#BE185D] bg-[#FDF2F8] px-3 py-2">
           <div>
-            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#8A4B20]">
-              Total Strokes
+            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#9D174D]">
+              {isFullRun ? 'Total Strokes' : 'Hole 20 Strokes'}
             </div>
             <div className="font-display text-2xl font-bold text-[#3B1D0E] tabular-nums">
-              {totalStrokes}
+              {isFullRun ? effectiveStrokes : hole20Score}
             </div>
           </div>
-          <div className="border-x-2 border-[#C7DFEE]">
-            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#8A4B20]">
-              {isFullRun ? 'Total Par' : 'Run Par'}
+          <div className="border-x-2 border-[#FBCFE8]">
+            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#9D174D]">
+              {isFullRun ? 'Performance' : `Par ${lastHolePar}`}
             </div>
-            <div className="font-display text-2xl font-bold text-[#247A3C] tabular-nums">
-              {effectivePar}
+            <div className="font-display text-base sm:text-xl font-bold text-[#15803D] tabular-nums leading-tight mt-0.5">
+              {isFullRun ? deltaText : hole20Info.title}
             </div>
           </div>
           <div>
-            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#8A4B20]">
-              Performance
+            <div className="text-[10px] font-extrabold uppercase tracking-wider text-[#9D174D]">
+              World 5 Stars
             </div>
-            <div className="font-display text-base sm:text-xl font-bold text-[#B45309] tabular-nums leading-tight mt-0.5">
-              {deltaText}
+            <div className="font-display text-2xl font-bold text-[#B45309] tabular-nums">
+              ★ {candyWorldEarnedStars}/{candyWorldMaxStars}
             </div>
           </div>
         </div>
 
-        {/* Overall Staggered Star Rating */}
+        {/* Staggered Star Rating for Hole 20 / Run */}
         <div
           className="mt-1.5 flex items-center justify-center gap-1.5"
-          aria-label={`${overallStars} out of 3 stars`}
+          aria-label={`${displayStars} out of 3 stars`}
         >
-          <StarSvg filled={overallStars >= 1} animClass="animate-star-pop-1" />
-          <StarSvg filled={overallStars >= 2} animClass="animate-star-pop-2" />
-          <StarSvg filled={overallStars >= 3} animClass="animate-star-pop-3" />
+          <StarSvg filled={displayStars >= 1} animClass="animate-star-pop-1" />
+          <StarSvg filled={displayStars >= 2} animClass="animate-star-pop-2" />
+          <StarSvg filled={displayStars >= 3} animClass="animate-star-pop-3" />
         </div>
 
-        {/* Compact 16-Hole Two-Column Scorecard (Holes 1-8 & 9-16) */}
+        {/* Compact 20-Hole Two-Column Scorecard (Holes 1-10 & 11-20) */}
         <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
           {[firstHalf, secondHalf].map((group, groupIdx) => (
             <div

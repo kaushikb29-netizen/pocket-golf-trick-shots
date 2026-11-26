@@ -925,6 +925,19 @@ function drawTurf(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
         ctx.lineTo(732, 270);
         ctx.stroke();
         ctx.restore();
+      } else if (level.id === 20) {
+        // Caramel-frosting highlight along the challenging final chocolate putting chute
+        ctx.save();
+        ctx.fillStyle = 'rgba(253, 230, 138, 0.13)';
+        ctx.fillRect(646, 222, 168, 92);
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.48)';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([10, 8]);
+        ctx.beginPath();
+        ctx.moveTo(656, 268);
+        ctx.lineTo(744, 268);
+        ctx.stroke();
+        ctx.restore();
       }
     } else if (isCandy) {
       // Delicate pastel frosting shimmer specks on mint candy fairway
@@ -1267,6 +1280,126 @@ function drawIceHazards(ctx: CanvasRenderingContext2D, level: LevelDefinition): 
   ctx.restore();
 }
 
+function drawJellyHazards(ctx: CanvasRenderingContext2D, level: LevelDefinition): void {
+  const hazards = level.hazards;
+  if (!hazards) return;
+  const jellyZones = hazards.filter((z) => z.kind === 'jelly');
+  if (jellyZones.length === 0) return;
+
+  // Clip sticky jelly pools neatly to the playable turf polygon(s)
+  ctx.save();
+  ctx.beginPath();
+  for (const poly of level.turfPolygons) {
+    if (poly.points.length < 3) continue;
+    ctx.moveTo(poly.points[0].x, poly.points[0].y);
+    for (let i = 1; i < poly.points.length; i++) {
+      ctx.lineTo(poly.points[i].x, poly.points[i].y);
+    }
+    ctx.closePath();
+  }
+  ctx.clip();
+
+  for (let zi = 0; zi < jellyZones.length; zi++) {
+    const zone = jellyZones[zi];
+    const isGrape = zi % 2 === 1;
+    ctx.save();
+    ctx.translate(zone.x, zone.y);
+    if (zone.angle) {
+      ctx.rotate(zone.angle);
+    }
+
+    const localZone: SurfaceZone = { ...zone, x: 0, y: 0, angle: 0 };
+
+    // Soft sticky syrup outer puddle halo
+    ctx.save();
+    traceHazardPath(ctx, localZone);
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = isGrape ? 'rgba(192, 132, 252, 0.42)' : 'rgba(249, 168, 212, 0.48)';
+    ctx.stroke();
+    ctx.restore();
+
+    // Rich glossy raspberry-pink / berry-grape sticky jelly fill
+    traceHazardPath(ctx, localZone);
+    const jellyGrad = ctx.createRadialGradient(
+      -zone.w * 0.16,
+      -zone.h * 0.18,
+      6,
+      0,
+      0,
+      Math.max(zone.w, zone.h) * 0.62
+    );
+    if (isGrape) {
+      jellyGrad.addColorStop(0, '#E879F9');
+      jellyGrad.addColorStop(0.55, '#C026D3');
+      jellyGrad.addColorStop(1, '#86198F');
+    } else {
+      jellyGrad.addColorStop(0, '#F9A8D4');
+      jellyGrad.addColorStop(0.45, '#EC4899');
+      jellyGrad.addColorStop(1, '#BE185D');
+    }
+    ctx.fillStyle = jellyGrad;
+    ctx.fill();
+
+    // Clipped sticky glaze swirls, air bubbles & glossy specular sheen
+    ctx.save();
+    traceHazardPath(ctx, localZone);
+    ctx.clip();
+
+    // Recessed glossy inner rim
+    ctx.strokeStyle = 'rgba(80, 7, 36, 0.28)';
+    ctx.lineWidth = 7;
+    traceHazardPath(ctx, localZone);
+    ctx.stroke();
+
+    // Thick syrupy contour waves
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(-zone.w * 0.32, -zone.h * 0.08);
+    ctx.quadraticCurveTo(-zone.w * 0.05, -zone.h * 0.22, zone.w * 0.24, -zone.h * 0.06);
+    ctx.moveTo(-zone.w * 0.24, zone.h * 0.14);
+    ctx.quadraticCurveTo(zone.w * 0.04, zone.h * 0.02, zone.w * 0.28, zone.h * 0.16);
+    ctx.stroke();
+
+    // Glossy wet crescent shine along top-left
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.56)';
+    ctx.beginPath();
+    ctx.ellipse(-zone.w * 0.18, -zone.h * 0.22, zone.w * 0.18, Math.max(4, zone.h * 0.11), -0.18, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cute suspended jelly air bubbles
+    const bubbles = [
+      [-0.26, 0.12, 4.2],
+      [0.2, -0.16, 3.6],
+      [0.06, 0.18, 3.0],
+      [-0.04, -0.02, 2.6],
+      [0.28, 0.08, 2.4],
+    ];
+    for (const [bx, by, br] of bubbles) {
+      ctx.beginPath();
+      ctx.arc(zone.w * bx, zone.h * by, br, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(zone.w * bx - br * 0.3, zone.h * by - br * 0.3, br * 0.35, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Crisp cartoon berry-plum outline so sticky jelly stands out unmistakably on mint & chocolate
+    traceHazardPath(ctx, localZone);
+    ctx.lineWidth = 2.8;
+    ctx.strokeStyle = '#6B1839';
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
 function drawConveyors(
   ctx: CanvasRenderingContext2D,
   level: LevelDefinition,
@@ -1441,6 +1574,73 @@ function drawIceSparkles(
       ctx.fill();
       ctx.restore();
     }
+  }
+}
+
+function drawCandySparkles(
+  ctx: CanvasRenderingContext2D,
+  level: LevelDefinition,
+  time: number
+): void {
+  const hazards = level.hazards;
+  if (hazards) {
+    for (let zi = 0; zi < hazards.length; zi++) {
+      const zone = hazards[zi];
+      if (zone.kind !== 'jelly') continue;
+      const offsets = [
+        [-0.22, -0.18],
+        [0.2, 0.14],
+      ];
+      for (let k = 0; k < offsets.length; k++) {
+        const phase = (Math.sin(time * 3.4 + zi * 1.9 + k * 2.6) + 1) * 0.5;
+        if (phase < 0.32) continue;
+        const alpha = (phase - 0.32) / 0.68;
+        const [ox, oy] = offsets[k];
+        const sx = zone.x + zone.w * ox;
+        const sy = zone.y + zone.h * oy;
+        const r = 3.2 + alpha * 3.4;
+
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.globalAlpha = alpha * 0.9;
+        ctx.fillStyle = '#FFFDF5';
+        ctx.beginPath();
+        ctx.moveTo(0, -r);
+        ctx.quadraticCurveTo(0, 0, r, 0);
+        ctx.quadraticCurveTo(0, 0, 0, r);
+        ctx.quadraticCurveTo(0, 0, -r, 0);
+        ctx.quadraticCurveTo(0, 0, 0, -r);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+  }
+
+  // Subtle decorative twinkling sugar sparkles on candy bumpers
+  for (let bi = 0; bi < level.bumpers.length; bi++) {
+    const b = level.bumpers[bi];
+    if (b.style !== 'candy') continue;
+    const phase = (Math.sin(time * 3.2 + bi * 1.7) + 1) * 0.5;
+    if (phase < 0.45) continue;
+    const alpha = (phase - 0.45) / 0.55;
+    const sx = b.x + b.radius * 0.65;
+    const sy = b.y - b.radius * 0.62;
+    const r = 3 + alpha * 3.2;
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.globalAlpha = alpha * 0.85;
+    ctx.fillStyle = '#FDE047';
+    ctx.beginPath();
+    ctx.moveTo(0, -r);
+    ctx.quadraticCurveTo(0, 0, r, 0);
+    ctx.quadraticCurveTo(0, 0, 0, r);
+    ctx.quadraticCurveTo(0, 0, -r, 0);
+    ctx.quadraticCurveTo(0, 0, 0, -r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -2507,18 +2707,28 @@ function drawBumper(
   }
 
   if (bumper.style === 'candy') {
+    const candyBounceScale = 1 + pulse * 0.1;
+    const candyWiggle = pulse > 0.02 ? Math.sin(pulse * Math.PI * 2.5) * 0.16 * pulse : 0;
+    ctx.scale(candyBounceScale, candyBounceScale);
+    ctx.rotate(candyWiggle);
+
     // Candy factory drop shadow
     ctx.beginPath();
     ctx.arc(4, 6, bumper.radius, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(92, 24, 52, 0.28)';
     ctx.fill();
 
-    // Juicy pastel pulse halo on bounce
-    if (pulse > 0.05) {
+    // Juicy pastel bounce halo + bright star ring on impact pulse
+    if (pulse > 0.04) {
       ctx.beginPath();
-      ctx.arc(0, 0, bumper.radius + 6 + pulse * 5, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(251, 207, 232, ${(pulse * 0.58).toFixed(2)})`;
+      ctx.arc(0, 0, bumper.radius + 7 + pulse * 7, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(251, 207, 232, ${(pulse * 0.65).toFixed(2)})`;
       ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, 0, bumper.radius + 4 + pulse * 8, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(253, 224, 71, ${(pulse * 0.85).toFixed(2)})`;
+      ctx.lineWidth = 2.6;
+      ctx.stroke();
     }
 
     // Creamy peppermint candy base
@@ -2623,6 +2833,7 @@ function drawRotatingObstacle(
   theme: LevelDefinition['theme'] = 'resort'
 ): void {
   const isFrost = theme === 'frost';
+  const isCandy = theme === 'candy';
   ctx.save();
   ctx.translate(rotator.cx, rotator.cy);
 
@@ -2630,7 +2841,11 @@ function drawRotatingObstacle(
   ctx.save();
   ctx.beginPath();
   ctx.arc(0, 0, rotator.length / 2, 0, Math.PI * 2);
-  ctx.strokeStyle = isFrost ? 'rgba(12, 74, 110, 0.28)' : 'rgba(255, 255, 255, 0.22)';
+  ctx.strokeStyle = isFrost
+    ? 'rgba(12, 74, 110, 0.28)'
+    : isCandy
+    ? 'rgba(255, 241, 242, 0.34)'
+    : 'rgba(255, 255, 255, 0.22)';
   ctx.lineWidth = 2;
   ctx.setLineDash([8, 8]);
   ctx.stroke();
@@ -2649,64 +2864,103 @@ function drawRotatingObstacle(
     ctx.save();
     ctx.translate(4, 6);
     drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
-    ctx.fillStyle = isFrost ? 'rgba(15, 42, 74, 0.28)' : 'rgba(15, 45, 25, 0.26)';
+    ctx.fillStyle = isFrost
+      ? 'rgba(15, 42, 74, 0.28)'
+      : isCandy
+      ? 'rgba(92, 24, 52, 0.32)'
+      : 'rgba(15, 45, 25, 0.26)';
     ctx.fill();
     ctx.restore();
 
-    // Main bright painted windmill paddle (frosty glacier-blue or warm amber wood)
-    drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
-    const bladeGrad = ctx.createLinearGradient(0, -hh, 0, hh);
-    if (isFrost) {
-      bladeGrad.addColorStop(0, '#7DD3FC');
-      bladeGrad.addColorStop(0.5, '#0EA5E9');
-      bladeGrad.addColorStop(1, '#0369A1');
+    if (isCandy) {
+      // Rotating candy-cane striped spinner bar
+      drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
+      ctx.fillStyle = '#FFFDF9';
+      ctx.fill();
+
+      ctx.save();
+      drawRoundedRectPath(ctx, -hw + 1, -hh + 1, rotator.length - 2, rotator.thickness - 2, 8);
+      ctx.clip();
+      ctx.fillStyle = '#F43F5E';
+      const stripeSpacing = 22;
+      const span = rotator.length + rotator.thickness + 32;
+      for (let sx = -span; sx <= span; sx += stripeSpacing) {
+        ctx.beginPath();
+        ctx.moveTo(sx, -hh - 4);
+        ctx.lineTo(sx + 10, -hh - 4);
+        ctx.lineTo(sx - 6, hh + 4);
+        ctx.lineTo(sx - 16, hh + 4);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
+      ctx.fillRect(-hw, -hh, rotator.length, 4.5);
+      ctx.restore();
+
+      drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
+      ctx.lineWidth = 2.6;
+      ctx.strokeStyle = '#7F1D3A';
+      ctx.stroke();
     } else {
-      bladeGrad.addColorStop(0, '#F59E0B');
-      bladeGrad.addColorStop(0.5, '#D97706');
-      bladeGrad.addColorStop(1, '#B45309');
+      // Main bright painted windmill paddle (frosty glacier-blue or warm amber wood)
+      drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
+      const bladeGrad = ctx.createLinearGradient(0, -hh, 0, hh);
+      if (isFrost) {
+        bladeGrad.addColorStop(0, '#7DD3FC');
+        bladeGrad.addColorStop(0.5, '#0EA5E9');
+        bladeGrad.addColorStop(1, '#0369A1');
+      } else {
+        bladeGrad.addColorStop(0, '#F59E0B');
+        bladeGrad.addColorStop(0.5, '#D97706');
+        bladeGrad.addColorStop(1, '#B45309');
+      }
+      ctx.fillStyle = bladeGrad;
+      ctx.fill();
+
+      // High-visibility stripe tips for motion reading
+      ctx.save();
+      drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
+      ctx.clip();
+      ctx.fillStyle = isFrost ? '#F0F9FF' : '#FEF3C7';
+      ctx.fillRect(-hw + 14, -hh, 16, rotator.thickness);
+      ctx.fillRect(hw - 30, -hh, 16, rotator.thickness);
+      ctx.fillStyle = 'rgba(255,255,255,0.34)';
+      ctx.fillRect(-hw, -hh, rotator.length, 5);
+      ctx.restore();
+
+      drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = isFrost ? '#0C4A6E' : '#522810';
+      ctx.stroke();
     }
-    ctx.fillStyle = bladeGrad;
-    ctx.fill();
-
-    // High-visibility stripe tips for motion reading
-    ctx.save();
-    drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
-    ctx.clip();
-    ctx.fillStyle = isFrost ? '#F0F9FF' : '#FEF3C7';
-    ctx.fillRect(-hw + 14, -hh, 16, rotator.thickness);
-    ctx.fillRect(hw - 30, -hh, 16, rotator.thickness);
-    ctx.fillStyle = 'rgba(255,255,255,0.34)';
-    ctx.fillRect(-hw, -hh, rotator.length, 5);
-    ctx.restore();
-
-    drawRoundedRectPath(ctx, -hw, -hh, rotator.length, rotator.thickness, 9);
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = isFrost ? '#0C4A6E' : '#522810';
-    ctx.stroke();
 
     ctx.restore();
   }
 
-  // Center windmill hub cap
+  // Center windmill / peppermint hub cap
   ctx.beginPath();
   ctx.arc(3, 5, rotator.hubRadius, 0, Math.PI * 2);
-  ctx.fillStyle = isFrost ? 'rgba(15, 42, 74, 0.3)' : 'rgba(15, 45, 25, 0.28)';
+  ctx.fillStyle = isFrost
+    ? 'rgba(15, 42, 74, 0.3)'
+    : isCandy
+    ? 'rgba(92, 24, 52, 0.32)'
+    : 'rgba(15, 45, 25, 0.28)';
   ctx.fill();
 
   ctx.beginPath();
   ctx.arc(0, 0, rotator.hubRadius, 0, Math.PI * 2);
-  ctx.fillStyle = isFrost ? '#0284C7' : '#EF4444';
+  ctx.fillStyle = isFrost ? '#0284C7' : isCandy ? '#EC4899' : '#EF4444';
   ctx.fill();
   ctx.lineWidth = 3;
-  ctx.strokeStyle = isFrost ? '#0C4A6E' : '#522011';
+  ctx.strokeStyle = isFrost ? '#0C4A6E' : isCandy ? '#7F1D3A' : '#522011';
   ctx.stroke();
 
   ctx.beginPath();
   ctx.arc(0, 0, rotator.hubRadius * 0.48, 0, Math.PI * 2);
-  ctx.fillStyle = isFrost ? '#E0F7FF' : '#FDE047';
+  ctx.fillStyle = isFrost ? '#E0F7FF' : isCandy ? '#FFFDF5' : '#FDE047';
   ctx.fill();
   ctx.lineWidth = 2;
-  ctx.strokeStyle = isFrost ? '#0369A1' : '#78350F';
+  ctx.strokeStyle = isFrost ? '#0369A1' : isCandy ? '#BE185D' : '#78350F';
   ctx.stroke();
 
   ctx.restore();
@@ -3232,10 +3486,13 @@ function drawStaticCourseLayer(
   // Glossy ice sheets on Frost Falls courses (clipped neatly inside turf polygons)
   drawIceHazards(ctx, level);
 
+  // Sticky raspberry & grape jelly zones on Candy Factory courses
+  drawJellyHazards(ctx, level);
+
   // Sand trap patches on turf
   drawSandHazards(ctx, level);
 
-  // Wooden, frosted stone, crystal, or neon outer borders & interior walls
+  // Wooden, frosted stone, crystal, candy-cane, jellybean, or neon borders & interior walls
   for (const wall of level.walls) {
     drawWoodenWall(ctx, wall, level.theme);
   }
@@ -3303,6 +3560,7 @@ export function renderFrame(
     }
     drawTurf(ctx, level);
     drawIceHazards(ctx, level);
+    drawJellyHazards(ctx, level);
     drawSandHazards(ctx, level);
     for (const wall of level.walls) {
       drawWoodenWall(ctx, wall, level.theme);
@@ -3314,9 +3572,11 @@ export function renderFrame(
   ctx.translate(transform.offsetX + shakeX, transform.offsetY + shakeY);
   ctx.scale(transform.scale, transform.scale);
 
-  // Animated icy sparkles on Frost Falls glacier sheets
+  // Animated icy sparkles on Frost Falls glacier sheets & sugar sparkles on Candy Factory courses
   if (level.theme === 'frost') {
     drawIceSparkles(ctx, level, sim.elapsedTime);
+  } else if (level.theme === 'candy') {
+    drawCandySparkles(ctx, level, sim.elapsedTime);
   }
 
   // Animated moving conveyor belts with clear directional arrows
