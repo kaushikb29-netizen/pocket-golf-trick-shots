@@ -666,7 +666,9 @@ export function VictoryModal({
               id="victory-title"
               className="mt-0.5 font-display text-lg sm:text-2xl font-bold text-[#3B1D0E] leading-tight"
             >
-              FROST FALLS CHAMPION — ALL {LEVELS.length} HOLES CLEARED!
+              {isFullRun
+                ? `FROST FALLS CHAMPION — ALL ${LEVELS.length} HOLES CLEARED!`
+                : 'FROST FALLS WORLD CLEARED!'}
             </h2>
           </div>
         </div>
