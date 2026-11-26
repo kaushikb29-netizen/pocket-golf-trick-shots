@@ -298,29 +298,32 @@ export function TitleScreen({
 
           <button
             type="button"
-            data-testid="new-game-btn"
+            data-testid="select-world-btn"
             onClick={() => {
               golfAudio.playCardSelect();
-              onNewGame();
+              onSelectHole();
             }}
             className="min-h-[56px] flex flex-col items-center justify-center font-display text-lg sm:text-[21px] font-bold leading-tight text-[#FFFDF5] bg-[#2FA752] hover:bg-[#269145] hover:-translate-y-0.5 active:translate-y-1 px-4 py-2.5 rounded-2xl border-[4px] border-[#522810] shadow-[0_5px_0_#522810] hover:shadow-[0_6px_0_#522810] active:shadow-[0_2px_0_#522810] transition-all duration-150 cursor-pointer focus-visible:outline-4 focus-visible:outline-[#FDE047] whitespace-nowrap"
           >
-            <span>New Game</span>
+            <span>Select World</span>
             <span className="text-[11px] font-sans font-extrabold text-[#ECFDF3]/90">
-              Start at Hole 1
+              6 Worlds · {totalLevels} Holes
             </span>
           </button>
 
           <button
             type="button"
-            data-testid="select-hole-btn"
+            data-testid="new-game-btn"
             onClick={() => {
               golfAudio.playButtonClick();
-              onSelectHole();
+              onNewGame();
             }}
-            className="min-h-[50px] font-display text-lg sm:text-[20px] font-bold tracking-wide text-[#3B1D0E] bg-[#FFF6DF] hover:bg-[#FDECC8] hover:-translate-y-0.5 active:translate-y-1 px-4 py-2.5 rounded-2xl border-[4px] border-[#522810] shadow-[0_5px_0_#522810] hover:shadow-[0_6px_0_#522810] active:shadow-[0_2px_0_#522810] transition-all duration-150 cursor-pointer focus-visible:outline-4 focus-visible:outline-[#FDE047] whitespace-nowrap"
+            className="min-h-[50px] flex flex-col items-center justify-center font-display text-lg sm:text-[20px] font-bold leading-tight text-[#3B1D0E] bg-[#FFF6DF] hover:bg-[#FDECC8] hover:-translate-y-0.5 active:translate-y-1 px-4 py-2 rounded-2xl border-[4px] border-[#522810] shadow-[0_5px_0_#522810] hover:shadow-[0_6px_0_#522810] active:shadow-[0_2px_0_#522810] transition-all duration-150 cursor-pointer focus-visible:outline-4 focus-visible:outline-[#FDE047] whitespace-nowrap"
           >
-            Select Hole
+            <span>New Game</span>
+            <span className="text-[10px] font-sans font-extrabold text-[#8A4B20]">
+              Start at Hole 1
+            </span>
           </button>
 
           <button

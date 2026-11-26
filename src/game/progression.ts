@@ -2,59 +2,119 @@ import { LEVELS } from './levels';
 import { calculateStars } from './physics';
 import type { AudioPreferences, LevelTheme } from './types';
 
+export type WorldId =
+  | 'sunny-garden'
+  | 'tropical-trouble'
+  | 'neon-nights'
+  | 'frost-falls'
+  | 'candy-factory'
+  | 'clockwork-carnival';
+
+export type WorldVisualTheme = LevelTheme | 'candy' | 'clockwork';
+
 export interface CourseWorld {
-  id: 'sunny-garden' | 'tropical-trouble' | 'neon-nights' | 'frost-falls';
+  id: WorldId;
+  worldNumber: number;
   name: string;
   tagline: string;
-  theme: LevelTheme;
-  holeIds: number[];
+  theme: WorldVisualTheme;
+  holeIds: [number, number, number, number];
+  comingSoon: boolean;
   accentHex: string;
   surfaceHex: string;
   borderHex: string;
+  badgeBgHex: string;
+  badgeTextHex: string;
 }
 
 export const COURSE_WORLDS: CourseWorld[] = [
   {
     id: 'sunny-garden',
+    worldNumber: 1,
     name: 'Sunny Garden',
     tagline: 'Crisp fairways, wooden banks & windmill timing',
     theme: 'garden',
     holeIds: [1, 2, 3, 4],
+    comingSoon: false,
     accentHex: '#2FA752',
     surfaceHex: '#ECFDF3',
     borderHex: '#1F6F38',
+    badgeBgHex: '#DCFCE7',
+    badgeTextHex: '#166534',
   },
   {
     id: 'tropical-trouble',
+    worldNumber: 2,
     name: 'Tropical Trouble',
     tagline: 'Sandy traps, lagoon hops & palm pinball bumpers',
     theme: 'beach',
     holeIds: [5, 6, 7, 8],
+    comingSoon: false,
     accentHex: '#0EA5B7',
     surfaceHex: '#ECFEFF',
     borderHex: '#0E7490',
+    badgeBgHex: '#CFFAFE',
+    badgeTextHex: '#155E75',
   },
   {
     id: 'neon-nights',
+    worldNumber: 3,
     name: 'Neon Nights',
     tagline: 'Laser gates, linked portals & gravity fields',
     theme: 'neon',
     holeIds: [9, 10, 11, 12],
-    accentHex: '#A855F7',
+    comingSoon: false,
+    accentHex: '#9333EA',
     surfaceHex: '#F5F3FF',
     borderHex: '#6D28D9',
+    badgeBgHex: '#EDE9FE',
+    badgeTextHex: '#5B21B6',
   },
   {
     id: 'frost-falls',
+    worldNumber: 4,
     name: 'Frost Falls',
     tagline: 'Slippery glacier ice, snowballs & crystal mazes',
     theme: 'frost',
     holeIds: [13, 14, 15, 16],
+    comingSoon: false,
     accentHex: '#0284C7',
     surfaceHex: '#EFF9FF',
     borderHex: '#0C4A6E',
+    badgeBgHex: '#E0F2FE',
+    badgeTextHex: '#075985',
+  },
+  {
+    id: 'candy-factory',
+    worldNumber: 5,
+    name: 'Candy Factory',
+    tagline: 'Peppermint bumpers, caramel bends & sugar chutes',
+    theme: 'candy',
+    holeIds: [17, 18, 19, 20],
+    comingSoon: true,
+    accentHex: '#EC4899',
+    surfaceHex: '#FDF2F8',
+    borderHex: '#9D174D',
+    badgeBgHex: '#FCE7F3',
+    badgeTextHex: '#9D174D',
+  },
+  {
+    id: 'clockwork-carnival',
+    worldNumber: 6,
+    name: 'Clockwork Carnival',
+    tagline: 'Spinning brass gears, ticket booths & big-top tricks',
+    theme: 'clockwork',
+    holeIds: [21, 22, 23, 24],
+    comingSoon: true,
+    accentHex: '#D97706',
+    surfaceHex: '#FFFBEB',
+    borderHex: '#92400E',
+    badgeBgHex: '#FEF3C7',
+    badgeTextHex: '#92400E',
   },
 ];
+
+export const PLAYABLE_WORLDS: CourseWorld[] = COURSE_WORLDS.filter((w) => !w.comingSoon);
 
 export interface HoleProgressRecord {
   bestStrokes: number;
@@ -66,19 +126,21 @@ export interface ProgressStore {
   holes: Record<number, HoleProgressRecord>;
   completedHoles: number[];
   lastUnlockedHole: number;
+  lastPlayedHole: number;
   totalStars: number;
   bestFullCourseTotal: number | null;
   audio: AudioPreferences;
 }
 
-export type WorldCompletionStatus = 'not_started' | 'in_progress' | 'completed';
+export type WorldCompletionStatus = 'coming_soon' | 'not_started' | 'in_progress' | 'completed';
 
 export interface WorldProgressStats {
   completedCount: number;
   totalHoles: number;
+  implementedHoles: number;
   earnedStars: number;
   maxStars: number;
-  totalPar: number;
+  totalPar: number | null;
   bestWorldStrokes: number | null;
   status: WorldCompletionStatus;
 }
@@ -89,6 +151,7 @@ export interface OverallProgressStats {
   earnedStars: number;
   maxStars: number;
   completedWorlds: number;
+  playableWorlds: number;
   totalWorlds: number;
 }
 
@@ -100,15 +163,25 @@ export const DEFAULT_AUDIO_PREFS: AudioPreferences = {
   musicEnabled: true,
 };
 
+export function isHoleImplemented(holeId: number): boolean {
+  return Number.isInteger(holeId) && holeId >= 1 && holeId <= LEVELS.length;
+}
+
+function clampPlayableHole(holeId: number): number {
+  if (!Number.isFinite(holeId)) return 1;
+  return Math.min(LEVELS.length, Math.max(1, Math.round(holeId)));
+}
+
 function reconcileDerivedFields(
   holes: Record<number, HoleProgressRecord>,
   storedLastUnlocked: number | null,
+  storedLastPlayed: number | null,
   bestFullCourseTotal: number | null,
   audio: AudioPreferences
 ): ProgressStore {
   const completedHoles = Object.keys(holes)
     .map((k) => Number.parseInt(k, 10))
-    .filter((id) => Number.isFinite(id) && id >= 1 && id <= LEVELS.length)
+    .filter((id) => isHoleImplemented(id))
     .sort((a, b) => a - b);
 
   let totalStars = 0;
@@ -126,12 +199,17 @@ function reconcileDerivedFields(
     LEVELS.length,
     Math.max(1, derivedUnlocked, storedLastUnlocked ?? 1)
   );
+  const lastPlayedHole =
+    storedLastPlayed !== null
+      ? Math.min(lastUnlockedHole, clampPlayableHole(storedLastPlayed))
+      : lastUnlockedHole;
 
   return {
     version: 2,
     holes,
     completedHoles,
     lastUnlockedHole,
+    lastPlayedHole,
     totalStars,
     bestFullCourseTotal,
     audio,
@@ -142,7 +220,11 @@ export function createEmptyProgress(
   bestFullCourseTotal: number | null = null,
   audio: AudioPreferences = { ...DEFAULT_AUDIO_PREFS }
 ): ProgressStore {
-  return reconcileDerivedFields({}, 1, bestFullCourseTotal, audio);
+  return reconcileDerivedFields({}, 1, 1, bestFullCourseTotal, audio);
+}
+
+export function getWorldById(worldId: WorldId): CourseWorld {
+  return COURSE_WORLDS.find((w) => w.id === worldId) ?? COURSE_WORLDS[0];
 }
 
 export function getWorldForLevelId(levelId: number): CourseWorld {
@@ -152,9 +234,27 @@ export function getWorldForLevelId(levelId: number): CourseWorld {
 }
 
 export function isHoleUnlocked(progress: ProgressStore, holeId: number): boolean {
-  if (holeId <= 1) return true;
-  if (holeId > LEVELS.length) return false;
+  if (!isHoleImplemented(holeId)) return false;
+  if (holeId === 1) return true;
   return holeId <= progress.lastUnlockedHole || Boolean(progress.holes[holeId]);
+}
+
+export function isWorldUnlocked(progress: ProgressStore, world: CourseWorld): boolean {
+  if (world.comingSoon) return false;
+  return world.holeIds.some((holeId) => isHoleUnlocked(progress, holeId));
+}
+
+export function recordLastPlayedHole(
+  progress: ProgressStore,
+  holeId: number
+): ProgressStore {
+  if (!isHoleImplemented(holeId)) return progress;
+  const safeHole = clampPlayableHole(holeId);
+  if (progress.lastPlayedHole === safeHole) return progress;
+  return {
+    ...progress,
+    lastPlayedHole: safeHole,
+  };
 }
 
 export function recordHoleCompletion(
@@ -192,6 +292,7 @@ export function recordHoleCompletion(
     progress: reconcileDerivedFields(
       nextHoles,
       nextUnlocked,
+      clampPlayableHole(levelId),
       progress.bestFullCourseTotal,
       progress.audio
     ),
@@ -245,37 +346,59 @@ export function getWorldStats(
   progress: ProgressStore,
   world: CourseWorld
 ): WorldProgressStats {
+  const totalHoles = world.holeIds.length;
+  const maxStars = totalHoles * 3;
+
+  if (world.comingSoon) {
+    return {
+      completedCount: 0,
+      totalHoles,
+      implementedHoles: 0,
+      earnedStars: 0,
+      maxStars,
+      totalPar: null,
+      bestWorldStrokes: null,
+      status: 'coming_soon',
+    };
+  }
+
   let completedCount = 0;
+  let implementedHoles = 0;
   let earnedStars = 0;
   let totalPar = 0;
   let bestSum = 0;
 
   for (const holeId of world.holeIds) {
     const level = LEVELS.find((l) => l.id === holeId);
-    if (level) totalPar += level.par;
+    if (level) {
+      implementedHoles += 1;
+      totalPar += level.par;
+    }
     const rec = progress.holes[holeId];
-    if (rec) {
+    if (rec && level) {
       completedCount += 1;
       earnedStars += rec.stars;
       bestSum += rec.bestStrokes;
     }
   }
 
-  const totalHoles = world.holeIds.length;
   const status: WorldCompletionStatus =
-    completedCount === 0
+    implementedHoles === 0
+      ? 'coming_soon'
+      : completedCount === 0
       ? 'not_started'
-      : completedCount >= totalHoles
+      : completedCount >= implementedHoles
       ? 'completed'
       : 'in_progress';
 
   return {
     completedCount,
     totalHoles,
+    implementedHoles,
     earnedStars,
-    maxStars: totalHoles * 3,
-    totalPar,
-    bestWorldStrokes: completedCount === totalHoles ? bestSum : null,
+    maxStars,
+    totalPar: implementedHoles > 0 ? totalPar : null,
+    bestWorldStrokes: implementedHoles > 0 && completedCount === implementedHoles ? bestSum : null,
     status,
   };
 }
@@ -285,7 +408,7 @@ export function getOverallProgressStats(progress: ProgressStore): OverallProgres
   let earnedStars = 0;
   let completedWorlds = 0;
 
-  for (const world of COURSE_WORLDS) {
+  for (const world of PLAYABLE_WORLDS) {
     const stats = getWorldStats(progress, world);
     completedHoles += stats.completedCount;
     earnedStars += stats.earnedStars;
@@ -298,6 +421,7 @@ export function getOverallProgressStats(progress: ProgressStore): OverallProgres
     earnedStars,
     maxStars: LEVELS.length * 3,
     completedWorlds,
+    playableWorlds: PLAYABLE_WORLDS.length,
     totalWorlds: COURSE_WORLDS.length,
   };
 }
@@ -326,7 +450,7 @@ export function deserializeProgress(
     if (parsed && typeof parsed.holes === 'object' && parsed.holes !== null) {
       for (const [key, value] of Object.entries(parsed.holes)) {
         const id = Number.parseInt(key, 10);
-        if (!Number.isFinite(id) || id < 1 || id > LEVELS.length) continue;
+        if (!isHoleImplemented(id)) continue;
         if (!value || typeof value !== 'object') continue;
         const rec = value as Partial<HoleProgressRecord>;
         const bestStrokes =
@@ -366,7 +490,14 @@ export function deserializeProgress(
       typeof parsed?.lastUnlockedHole === 'number' &&
       Number.isFinite(parsed.lastUnlockedHole) &&
       parsed.lastUnlockedHole >= 1
-        ? Math.min(LEVELS.length, Math.round(parsed.lastUnlockedHole))
+        ? clampPlayableHole(parsed.lastUnlockedHole)
+        : null;
+
+    const storedLastPlayed =
+      typeof parsed?.lastPlayedHole === 'number' &&
+      Number.isFinite(parsed.lastPlayedHole) &&
+      parsed.lastPlayedHole >= 1
+        ? clampPlayableHole(parsed.lastPlayedHole)
         : null;
 
     const audio: AudioPreferences = {
@@ -380,7 +511,13 @@ export function deserializeProgress(
           : DEFAULT_AUDIO_PREFS.musicEnabled,
     };
 
-    return reconcileDerivedFields(cleanHoles, storedLastUnlocked, mergedBest, audio);
+    return reconcileDerivedFields(
+      cleanHoles,
+      storedLastUnlocked,
+      storedLastPlayed,
+      mergedBest,
+      audio
+    );
   } catch {
     return createEmptyProgress(legacyBest);
   }

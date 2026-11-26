@@ -16,14 +16,17 @@ import { golfAudio } from './game/audio';
 import { LEVELS } from './game/levels';
 import { getMaxStrokes } from './game/physics';
 import {
+  COURSE_WORLDS,
   getOverallProgressStats,
   loadProgressFromStorage,
   ProgressStore,
   recordFullCourseBest,
   recordHoleCompletion,
+  recordLastPlayedHole,
   resetSavedProgress,
   saveProgressToStorage,
   updateAudioPreferences,
+  WorldId,
 } from './game/progression';
 import { GamePhase } from './game/types';
 
@@ -33,6 +36,7 @@ function parseInitialParams(): {
   previewScores: number[] | null;
   previewStrokes: number;
   openMobileModal: boolean;
+  initialWorldId: WorldId | null;
 } {
   if (typeof window === 'undefined') {
     return {
@@ -41,6 +45,7 @@ function parseInitialParams(): {
       previewScores: null,
       previewStrokes: 0,
       openMobileModal: false,
+      initialWorldId: null,
     };
   }
   const params = new URLSearchParams(window.location.search);
@@ -58,6 +63,9 @@ function parseInitialParams(): {
   const lvl = LEVELS[clampedIdx] ?? LEVELS[0];
   const strokesParam = Number.parseInt(params.get('strokes') || '', 10);
 
+  const worldParam = params.get('world');
+  const matchedWorld = COURSE_WORLDS.find((w) => w.id === worldParam)?.id ?? null;
+
   if (preview === 'victory') {
     return {
       initialPhase: 'victory',
@@ -65,6 +73,7 @@ function parseInitialParams(): {
       previewScores: LEVELS.map((l, idx) => Math.max(1, l.par + (idx % 3 === 0 ? -1 : 0))),
       previewStrokes: 0,
       openMobileModal: false,
+      initialWorldId: null,
     };
   }
 
@@ -75,6 +84,7 @@ function parseInitialParams(): {
       previewScores: null,
       previewStrokes: Number.isFinite(strokesParam) && strokesParam >= 1 ? strokesParam : 1,
       openMobileModal: false,
+      initialWorldId: null,
     };
   }
 
@@ -85,6 +95,7 @@ function parseInitialParams(): {
       previewScores: null,
       previewStrokes: getMaxStrokes(lvl.par),
       openMobileModal: false,
+      initialWorldId: null,
     };
   }
 
@@ -95,16 +106,18 @@ function parseInitialParams(): {
       previewScores: null,
       previewStrokes: getMaxStrokes(lvl.par),
       openMobileModal: false,
+      initialWorldId: null,
     };
   }
 
-  if (view === 'courses') {
+  if (view === 'courses' || view === 'worlds' || view === 'world') {
     return {
       initialPhase: 'course_select',
       startLevelIdx: clampedIdx,
       previewScores: null,
       previewStrokes: 0,
       openMobileModal: false,
+      initialWorldId: matchedWorld,
     };
   }
 
@@ -115,6 +128,7 @@ function parseInitialParams(): {
       previewScores: null,
       previewStrokes: 0,
       openMobileModal: false,
+      initialWorldId: null,
     };
   }
 
@@ -124,6 +138,7 @@ function parseInitialParams(): {
     previewScores: null,
     previewStrokes: Number.isFinite(strokesParam) && strokesParam >= 0 ? strokesParam : 0,
     openMobileModal: view === 'mobile',
+    initialWorldId: null,
   };
 }
 
@@ -181,6 +196,16 @@ export default function App() {
     document.body.dataset.maxStrokes = String(currentMaxStrokes);
   }, [phase, currentLevel.id, strokes, currentMaxStrokes]);
 
+  const persistLastPlayed = useCallback((holeId: number) => {
+    setProgress((prev) => {
+      const updated = recordLastPlayedHole(prev, holeId);
+      if (updated !== prev) {
+        saveProgressToStorage(updated);
+      }
+      return updated;
+    });
+  }, []);
+
   // New Game begins from Hole 1 WITHOUT deleting existing saved records
   const handleNewGame = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) {
@@ -191,12 +216,13 @@ export default function App() {
     setStrokes(0);
     setHoleStrokes(LEVELS.map(() => 0));
     setLastClearNewBest(false);
+    persistLastPlayed(1);
     setPhase('playing');
     document.body.dataset.state = 'playing';
     canvasHandleRef.current?.resetBallToTee();
-  }, []);
+  }, [persistLastPlayed]);
 
-  // Continue Game opens the latest unlocked hole
+  // Continue Game opens the latest unlocked playable hole
   const handleContinueGame = useCallback(() => {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
@@ -210,25 +236,30 @@ export default function App() {
     setStrokes(0);
     setHoleStrokes(LEVELS.map(() => 0));
     setLastClearNewBest(false);
+    persistLastPlayed(targetIdx + 1);
     setPhase('playing');
     document.body.dataset.state = 'playing';
     canvasHandleRef.current?.resetBallToTee();
-  }, [progress.lastUnlockedHole]);
+  }, [progress.lastUnlockedHole, persistLastPlayed]);
 
-  const handleSelectHole = useCallback((targetIndex: number) => {
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
-    golfAudio.unlockAndStartMusic();
-    const safeIdx = Math.max(0, Math.min(LEVELS.length - 1, targetIndex));
-    setLevelIndex(safeIdx);
-    setStrokes(0);
-    setHoleStrokes(LEVELS.map(() => 0));
-    setLastClearNewBest(false);
-    setPhase('playing');
-    document.body.dataset.state = 'playing';
-    canvasHandleRef.current?.resetBallToTee();
-  }, []);
+  const handleSelectHole = useCallback(
+    (targetIndex: number) => {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      golfAudio.unlockAndStartMusic();
+      const safeIdx = Math.max(0, Math.min(LEVELS.length - 1, targetIndex));
+      setLevelIndex(safeIdx);
+      setStrokes(0);
+      setHoleStrokes(LEVELS.map(() => 0));
+      setLastClearNewBest(false);
+      persistLastPlayed(safeIdx + 1);
+      setPhase('playing');
+      document.body.dataset.state = 'playing';
+      canvasHandleRef.current?.resetBallToTee();
+    },
+    [persistLastPlayed]
+  );
 
   const handleOpenCoursesFromTitle = useCallback(() => {
     setReturnPhase('title');
@@ -324,8 +355,9 @@ export default function App() {
     setLevelIndex(nextIdx);
     setStrokes(0);
     setLastClearNewBest(false);
+    persistLastPlayed(nextIdx + 1);
     setPhase('playing');
-  }, [levelIndex]);
+  }, [levelIndex, persistLastPlayed]);
 
   const handleToggleSound = useCallback(() => {
     const nextSound = !progressRef.current.audio.soundEnabled;
@@ -524,10 +556,11 @@ export default function App() {
         />
       )}
 
-      {/* Illustrated 4-World Hole Selection */}
+      {/* Illustrated 6-World Selection & 4-Hole Level Selection */}
       {phase === 'course_select' && (
         <CourseSelectModal
           progress={progress}
+          initialWorldId={initialParams.initialWorldId}
           onSelectHole={handleSelectHole}
           onClose={handleCloseSubmodal}
         />

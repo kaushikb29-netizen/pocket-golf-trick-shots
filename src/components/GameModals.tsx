@@ -69,7 +69,7 @@ export function PauseModal({
             }}
             className="min-h-[46px] w-full font-display text-lg font-bold text-[#3B1D0E] bg-[#FFF2CC] hover:bg-[#FCE6A6] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-6 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
-            Select Hole
+            Select World
           </button>
           <button
             type="button"
@@ -837,7 +837,7 @@ export function VictoryModal({
             }}
             className="min-h-[48px] flex-1 sm:flex-none font-display text-lg font-bold text-[#3B1D0E] bg-[#FFF2CC] hover:bg-[#FCE6A6] hover:-translate-y-0.5 active:translate-y-0.5 py-2.5 px-5 rounded-2xl border-[3px] border-[#522810] shadow-[0_4px_0_#522810] active:shadow-[0_1px_0_#522810] transition-transform cursor-pointer whitespace-nowrap"
           >
-            Select Course
+            Select World
           </button>
           <button
             type="button"
